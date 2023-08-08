@@ -1,7 +1,5 @@
 #script to run two-factor anova in survey package on univariate metrics of colony size
 
-
-
 #load libraries
 library(tidyverse)
 library(survey)
@@ -14,7 +12,7 @@ library(viridis)
 library(ggridges)
 
 rm(list=ls())
-####Read in binned data---------------
+####Read in binned data and mean.SD file---------------
 setwd("C:/github/swains/colony_size")
 MOSP<-read.csv("MOSP_binned_tail_bins.csv", stringsAsFactors=FALSE) %>% mutate_if(is.character,as.factor)
 POCS<-read.csv("POCS_binned_tail_bins.csv", stringsAsFactors=FALSE) %>% mutate_if(is.character,as.factor)
@@ -24,6 +22,8 @@ MOSP$OBS_YEAR <- as.factor(MOSP$OBS_YEAR)
 POCS$OBS_YEAR <- as.factor(POCS$OBS_YEAR)
 POSP$OBS_YEAR <- as.factor(POSP$OBS_YEAR)
 
+dat<-read.csv ("Adult_mean_SD.csv", stringsAsFactors=FALSE, row.names = NULL) %>% mutate_if(is.character,as.factor)
+dat$OBS_YEAR <- as.factor(dat$OBS_YEAR)
 
 
 #### Set survey design -------------------------------------------------------
@@ -41,6 +41,7 @@ NH <- swa_sa %>%
 MOSP<-left_join(MOSP,NH, by = "DEPTH_BIN")
 POCS<-left_join(POCS,NH, by = "DEPTH_BIN")
 POSP<-left_join(POSP,NH, by = "DEPTH_BIN")
+dat<-left_join(dat,NH, by = "DEPTH_BIN")
 
 #Calculate survey weights (inverse proportion weighting)
 #MOSP
@@ -58,7 +59,7 @@ MOSP.sw$Strat_conc<-as.factor(paste(MOSP.sw$OBS_YEAR, MOSP.sw$DEPTH_BIN,sep = "_
 MOSP.des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=MOSP.sw)
 
 
-#POSP
+#POCS
 w.df<-POCS %>%
   group_by(OBS_YEAR,REEF_ZONE,DEPTH_BIN,NH) %>%
   summarise(n = length(unique(SITE)))
@@ -89,6 +90,22 @@ POSP.sw<-filter(POSP.sw, n!= "1") #remove strata that have less than 2 sites
 POSP.sw$Strat_conc<-as.factor(paste(POSP.sw$OBS_YEAR, POSP.sw$DEPTH_BIN,sep = "_"))
 POSP.des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=POSP.sw)
 
+
+#dat
+w.df<-dat %>%
+  group_by(OBS_YEAR,DEPTH_BIN,NH) %>%
+  summarise(n = length(unique(SITE)))
+
+w.df$sw<-w.df$NH/w.df$n #calculate survey weights for each site
+dat.sw<-left_join(dat,w.df) #merge weights with site-level data
+dat.sw$DEPTH_BIN <- as.factor(dat.sw$DEPTH_BIN)
+head(dat.sw)
+nrow(dat.sw) == n_distinct(dat.sw$SITE) #Check for duplicate sites
+
+dat.sw<-filter(dat.sw, n!= "1") #remove strata that have less than 2 sites
+
+dat.sw$Strat_conc<-as.factor(paste(dat.sw$OBS_YEAR, dat.sw$DEPTH_BIN,sep = "_"))
+dat.des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=dat.sw)
 
 
 
@@ -153,6 +170,33 @@ emmeans(POSP4, pairwise ~ OBS_YEAR) #hmmm.....seems misleading...no data?
 
 
 
+#dat: mean and SD for each of the three taxa
+
+M.MOSP1<-svyglm(MOSP.MEAN ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
+anova(M.MOSP1)  #Depth bin is significant (p = 0.02)
+emmeans(M.MOSP1, pairwise ~ DEPTH_BIN) #mid > shallow (P = 0.06)
+
+SD.MOSP1<-svyglm(MOSP.SD ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
+anova(SD.MOSP1) 
+#NS
+
+
+M.POSP1<-svyglm(POSP.MEAN ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
+anova(M.POSP1)  
+#NS
+
+SD.POSP1<-svyglm(POSP.SD ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
+anova(SD.POSP1) 
+#NS
+
+
+M.POCS1<-svyglm(POCS.MEAN ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
+anova(M.POCS1)  
+#NS
+
+SD.POCS1<-svyglm(POCS.SD ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
+anova(SD.POCS1)  #Depth bin is significant (p = 0.029)
+emmeans(SD.POCS1, pairwise ~ DEPTH_BIN) #deep > shallow (P = 0.0013)
 
 ####GRAPHIING -------------------------------
 setwd("C:/github/swains/colony_size")
@@ -284,8 +328,5 @@ g4 <- ggplot(POSP_summary, aes(x = BIN, y = mean, fill = Year)) +
 
 g4
 ggsave ("POSP_final.jpeg", width =5, height =5, units = 'in')
-
-
-
 
 

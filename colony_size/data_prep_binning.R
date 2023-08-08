@@ -8,7 +8,6 @@ library(viridis)
 library(ggridges)
 
 
-
 rm(list=ls())
 ####PREP SIZE STRUCTURE DATA---------------
 setwd("C:/github/swains/data")
@@ -37,7 +36,7 @@ dat.mean <- adults2 %>%
   mutate(log10.CL = log10(COLONYLENGTH))%>%
   group_by(OBS_YEAR, DEPTH_BIN, SITE, GENUS_CODE)%>%
   summarize(MEAN=mean(log10.CL)) %>%
-  spread(GENUS_CODE, MEAN)%>%
+  spread(GENUS_CODE, MEAN)
   
 
 dat.sd <- adults2 %>%
@@ -52,7 +51,7 @@ dat.summary  <- left_join(dat.mean, dat.sd, by = c("OBS_YEAR", "DEPTH_BIN", "SIT
   rename_with(~ sub(".y", ".SD", .x), everything())
 
 setwd("C:/github/swains/colony_size")
-write.csv(dat.summary, "Adult_mean_SD.csv")
+write.csv(dat.summary, "Adult_mean_SD.csv", row.names = FALSE)
 
 ######BINNING---------------
 #Set to taxa
