@@ -31,6 +31,30 @@ colnames(juvs2)
 adults2$OBS_YEAR <- as.factor(adults2$OBS_YEAR)
 juvs2$OBS_YEAR <- as.factor(juvs2$OBS_YEAR)
 
+######Mean and SD for adult taxa per site-------------------
+dat.mean <- adults2 %>%
+  filter(GENUS_CODE %in% c("MOSP", "POCS", "POSP")) %>% 
+  mutate(log10.CL = log10(COLONYLENGTH))%>%
+  group_by(OBS_YEAR, DEPTH_BIN, SITE, GENUS_CODE)%>%
+  summarize(MEAN=mean(log10.CL)) %>%
+  spread(GENUS_CODE, MEAN)%>%
+  
+
+dat.sd <- adults2 %>%
+  filter(GENUS_CODE %in% c("MOSP", "POCS", "POSP")) %>% 
+  mutate(log10.CL = log10(COLONYLENGTH))%>%
+  group_by(OBS_YEAR, DEPTH_BIN, SITE, GENUS_CODE)%>%
+  summarize(SD=sd(log10.CL)) %>%
+  spread(GENUS_CODE, SD)
+
+dat.summary  <- left_join(dat.mean, dat.sd, by = c("OBS_YEAR", "DEPTH_BIN", "SITE"))%>%
+  rename_with(~ sub(".x", ".MEAN", .x), everything())%>%
+  rename_with(~ sub(".y", ".SD", .x), everything())
+
+setwd("C:/github/swains/colony_size")
+write.csv(dat.summary, "Adult_mean_SD.csv")
+
+######BINNING---------------
 #Set to taxa
 genus <- "POCS"
 #genus <- "MOSP"
