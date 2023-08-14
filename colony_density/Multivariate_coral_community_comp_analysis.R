@@ -44,11 +44,11 @@ dat <- dat %>%
     PMVC = PDAM + PDAN + PMVC +POCS,
     PAVS = PAVS + PDIF,
     PSSP = PSSP + PHAI,
-    POSP = POSP + PSOL,
+    POSP = POSP + PSOL +PLOB, #adding PLOB as it wasn't observed at all in 2015 and 2018
     STYS = SPIS + STYS
   ) %>%
   select(-AVER, -ARET, -AHYA, -ACUR, -CEXE, -CCOL, -CMAY, -CYSP, -LINC, -LMYC, -MINC, -PDAM, -PDAN,-POCS,  -PDIF, -PHAI, -PSOL, -SPIS,
-          -CMAY, -LEPT)
+          -CMAY, -LEPT, -PLOB)
 
 ###check out # of sites by year, depth.
 tbl_N<- dat %>% 
@@ -83,21 +83,7 @@ taxa_reduced <- taxa[, !taxa_sum<2] # removes taxa only seen once.
 #taxa_reduced$dummy <- min(apply(taxa, 1, function(x) min(x[x>0]))) #set dummy value to lowest non-zero density value in taxa
 
 #PERMANOVA 
-#completely random design (no restrictions on permutations, use of residual in error term of all test statistics)
-
-basic <- adonis2(taxa_reduced ~ OBS_YEAR + DEPTH_BIN, data = groups, permutations = 999, method = 'bray', by = 'margin')
-basic
-
-#add in interaction term (this version of vegan has the surprising action that when applied to an A*B model, outputs proceeds to ignore the main effects!)
-basic2 <- adonis2(taxa_reduced ~ DEPTH_BIN * OBS_YEAR, data = groups, permutations = 999, method = 'bray', by = 'margin')
-basic2
-
-#set blocking factor of depth bin
-perm <- with(groups, how(nperm = 999, blocks = DEPTH_BIN))  #set depth bin as a blocking factor
-pmv <- adonis2(taxa_reduced ~ DEPTH_BIN + OBS_YEAR, data = groups, permutations = perm, method = "bray", sqrt.dist = FALSE, by = "terms")
-pmv
-
-#create a permutation object for our uniqiue StRS study design: Split Plot Analysis (Treatment term = OBS_YEAR)
+#create a permutation object for our uniqiue StRS study design: Split Plot Analysis 
 #specify that sites are to be freely permuted within blocks but that blocks are not allowed to permute
 perm <- how(within = Within(type = "free"),
                plots = Plots(type = "none"),
@@ -116,22 +102,7 @@ pmv_complex
 #DEPTH_BIN accounts for 23% of variation in the whole plot analysis, OBS_YEAR only 7% but this is significant
 
 
-#check PERMANOVA assumption of equal dispersion among groups/levels for each factor
-taxa_distmat <- vegdist((taxa_reduced), method = "bray")
-
-#Year
-bd <-  betadisper(taxa_distmat, groups$OBS_YEAR)
-boxplot(bd)
-anova(bd) #passes assumption
-#TukeyHSD(bd, ordered = FALSE, conf.level = 0.95) #optional post-hoc to see where dispersion may differ among factor levels
-
-#DEPTH
-bd <-  betadisper(taxa_distmat, groups$DEPTH_BIN)
-boxplot(bd)
-anova(bd) #passes assumption
-
-
-#pairwise comparisons
+#pairwise comparisons to see which years differed from one another
 #load function
 pairwise.adonis2 <- function(x, data, strata = NULL, nperm=999, ... ) {
   
@@ -203,12 +174,21 @@ pairwise.adonis2 <- function(x, data, strata = NULL, nperm=999, ... ) {
   return(res)
 }
 
-pw_YEAR <- pairwise.adonis2(taxa_reduced ~ OBS_YEAR, data = groups)
-pw_YEAR #all years differ from one another
+pw_YEAR <- pairwise.adonis2(taxa_reduced ~ OBS_YEAR, data = groups, p.adjust="BH")
+pw_YEAR
+#all years differ from one another
 #pairwise post-hoc tests
 
-pw_DEPTH <- pairwise.adonis2(taxa_reduced ~ DEPTH_BIN, data = groups)
-pw_DEPTH #All depths differ from one another---> though we used this as a blocking factor not a main effect in the PERMANOVA model
+#check PERMANOVA assumption of equal dispersion among groups/levels for each factor
+taxa_distmat <- vegdist((taxa_reduced), method = "bray")
+
+#Year
+bd <-  betadisper(taxa_distmat, groups$OBS_YEAR)
+boxplot(bd)
+anova(bd) #passes assumption
+#TukeyHSD(bd, ordered = FALSE, conf.level = 0.95) #optional post-hoc to see where dispersion may differ among factor levels
+
+
 
 ####SIMPER------------------------------
 #explore which specific taxa are differing among OBS_YEAR
@@ -240,8 +220,9 @@ species.scores$SPECIES <- rownames(species.scores)  # create a column of species
 species.scores <- cbind(species.scores, pval = taxa.spp.fit$vectors$pvals)
 head(species.scores)
 
-sig.species.scores <- subset(species.scores, pval<=0.05) #subset data to show species significant at 0.05
-
+species.scores$SPECIES <-  as.factor(species.scores$SPECIES)
+#sig.species.scores <- subset(species.scores, pval<=0.05) #subset data to show species significant at 0.05
+sig.species.scores <- subset(species.scores, SPECIES %in% c("FUSP", "PGWC", "PMVC", "MOSP", "POSP")) #subset to specific taxa contributing to 50,% cummulative difference
 
 #plot
 g1 <- ggplot(data.scores, aes(x=NMDS1, y=NMDS2))+ #sets up the plot
@@ -255,8 +236,8 @@ g1
 #add in species vectors for those with p-values <0.05 from the envfit
 g2 <- g1+
   geom_segment(data = sig.species.scores, aes(x = 0, xend=NMDS1, y=0, yend=NMDS2), arrow = arrow(length = unit(0.25, "cm")), colour = "grey10", lwd=0.3) + #add vector arrows of significant species
-  ggrepel::geom_text_repel(data = sig.species.scores, aes(x=NMDS1, y=NMDS2, label = SPECIES), cex = 3, direction = "both", segment.size = 0.25)+ #add labels for species, use ggrepel::geom_text_repel so that labels do not overlap
-  labs(title = "Ordination with species vectors")
+  ggrepel::geom_text_repel(data = sig.species.scores, aes(x=NMDS1, y=NMDS2, label = SPECIES), cex = 3, direction = "both", segment.size = 0.25) #add labels for species, use ggrepel::geom_text_repel so that labels do not overlap
+  #labs(title = "Ordination with species vectors")
 g2
 
 
@@ -284,7 +265,7 @@ g3 <- g2+
   geom_path(data = df_ell, aes(x = NMDS1, y = NMDS2, group = OBS_YEAR, color = OBS_YEAR)) #this is the ellipse, seperate ones by Site. 
 g3
 
-
+setwd("C:/github/swains/colony_density")
 ggplot2::ggsave ("nMDS_all_years_taxa_reduced.jpeg", width = 6, height = 5, units = 'in')
 
 ####nMDS plot: ggplot depth bin---------------------------
@@ -298,8 +279,9 @@ species.scores$species <- rownames(species.scores)  # create a column of species
 species.scores <- cbind(species.scores, pval = taxa.spp.fit$vectors$pvals)
 head(species.scores)
 
-sig.species.scores <- subset(species.scores, pval<=0.05) #subset data to show species significant at 0.05
-
+species.scores$species <-  as.factor(species.scores$species)
+#sig.species.scores <- subset(species.scores, pval<=0.05) #subset data to show species significant at 0.05
+sig.species.scores <- subset(species.scores, species %in% c("FUSP", "LESP", "PMVC", "MOSP", "PMAL")) #subset to specific taxa contributing to 50,% cummulative difference
 
 #plot
 g1 <- ggplot(data.scores, aes(x=NMDS1, y=NMDS2))+ #sets up the plot
