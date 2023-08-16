@@ -12,8 +12,6 @@ library(emmeans)
 
 #LOAD site-level data
 site.data.gen2<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Data/Swains_sitedata_GENUS.csv")
-site.data.sp2<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Data/Swains_sitedata_SPCODE.csv")
-site.data.tax2<-write.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Data/Swains_sitedata_TAXONCODE.csv")
 
 swa<-filter(site.data.gen2,new_MAX_DEPTH_M >=3) #subset sites less than 3m?
 
@@ -31,7 +29,6 @@ NH <- swa_sa %>%
   summarise(NH = sum(unique))
 
 swa<-left_join(swa,NH) #merge demo data with new NH values pooled across the 2 swains sectors
-
 
 
 #Calculate survey weights (inverse proportion weighting)
@@ -91,43 +88,65 @@ des.posp<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.posp)
 
 #Calculate regional mean and SE....of coral density?
 # depth_mean<-svyby(~CORAL,~OBS_YEAR+DEPTH_BIN,des,svymean) # Dont have "CORAL" column
-depth_mean<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des,svymean,na.rm.all=TRUE)
-depth_mean_pocs<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des.pocs,svymean,na.rm.all=TRUE)
-depth_mean_mosp<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des.mosp,svymean,na.rm.all=TRUE)
-depth_mean_posp<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des.posp,svymean,na.rm.all=TRUE)
-# depth_mean<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des,svymean)
-depth_mean
+depth_mean<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des,svymean)
+depth_mean_pocs<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des.pocs,svymean)
+depth_mean_mosp<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des.mosp,svymean)
+depth_mean_posp<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des.posp,svymean)
+# depth_mean<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des,svymean)
+
+#Testing for normality and equal variance
+with(site.sw, tapply((Ave.od), OBS_YEAR, shapiro.test)) #confirmed normal distribution among factor levels within OBS_YEAR
+bartlett.test(Ave.od ~ OBS_YEAR, site.sw) #confirmed homogeneity of variance among factor levels within OBS_YEAR
+with(site.sw, tapply((Ave.od), DEPTH_BIN, shapiro.test)) #confirmed normal distribution for DEPTH_BIN
+bartlett.test(Ave.od ~ DEPTH_BIN, site.sw) #confirmed homogeneity of variance for DEPTH_BIN
+#SSSS OD - no problems
+
+with(site.sw.pocs, tapply((sqrt(Ave.od)), OBS_YEAR, shapiro.test)) #confirmed normal distribution among factor levels within OBS_YEAR
+bartlett.test((sqrt(Ave.od)) ~ OBS_YEAR, site.sw.pocs) #confirmed homogeneity of variance among factor levels within OBS_YEAR
+with(site.sw.pocs, tapply((sqrt(Ave.od)), DEPTH_BIN, shapiro.test)) #confirmed normal distribution for DEPTH_BIN
+bartlett.test((sqrt(Ave.od)) ~ DEPTH_BIN, site.sw.pocs) #confirmed homogeneity of variance for DEPTH_BIN
+#need so sqrt transform pocs OD
+
+
+with(site.sw.mosp, tapply((Ave.od), OBS_YEAR, shapiro.test)) #confirmed normal distribution among factor levels within OBS_YEAR
+bartlett.test((Ave.od) ~ OBS_YEAR, site.sw.mosp) #confirmed homogeneity of variance among factor levels within OBS_YEAR
+with(site.sw.mosp, tapply((Ave.od), DEPTH_BIN, shapiro.test)) #confirmed normal distribution for DEPTH_BIN
+bartlett.test((Ave.od) ~ DEPTH_BIN, site.sw.mosp) #confirmed homogeneity of variance for DEPTH_BIN
+#no transformation needed
+
+with(site.sw.posp, tapply((Ave.od), OBS_YEAR, shapiro.test)) #confirmed normal distribution among factor levels within OBS_YEAR
+bartlett.test((Ave.od) ~ OBS_YEAR, site.sw.posp) #confirmed homogeneity of variance among factor levels within OBS_YEAR
+with(site.sw.posp, tapply((Ave.od), DEPTH_BIN, shapiro.test)) #confirmed normal distribution for DEPTH_BIN
+bartlett.test((Ave.od) ~ DEPTH_BIN, site.sw.posp) #confirmed homogeneity of variance for DEPTH_BIN
+#no transformation needed
+
 
 #  Test fixed effects of region and year
-modR<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_ad, family = "poisson", design=des) # all significant
-modR.pocs<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_ad,family = "poisson", design=des.pocs) # Year and depth significant
-modR.mosp<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_ad,family = "poisson", design=des.mosp) # Depth and year:depth significant
-modR.posp<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_ad,family = "poisson", design=des.posp) # Depth significant
+modR<-svyglm(Ave.od ~ OBS_YEAR*DEPTH_BIN, design=des) # all significant
+modR.pocs<-svyglm((sqrt(Ave.od)) ~ OBS_YEAR*DEPTH_BIN, design=des.pocs) # Year and depth significant
+modR.mosp<-svyglm(Ave.od ~ OBS_YEAR*DEPTH_BIN, design=des.mosp) # Depth and year:depth significant
+modR.posp<-svyglm(Ave.od ~ OBS_YEAR*DEPTH_BIN, design=des.posp) # Depth significant
 
 summary(modR); summary(modR.pocs); summary(modR.mosp); summary(modR.posp)
-car::Anova(modR, type = 3, test.statistic = "F") #only year sig
-car::Anova(modR.pocs, type = 3, test.statistic = "F") #year and the interaction sig
-car::Anova(modR.mosp, type = 3, test.statistic = "F") #all factors and interaction sig
-car::Anova(modR.posp, type = 3, test.statistic = "F") #all factors and interaction sig
-
-library(svydiags)
-svyqqplot(JuvColDen~OBS_YEAR, design=des)
-svystdres(modR,doplot=TRUE) 
-bartlett.test(JuvColDen ~ OBS_YEAR, site.sw) #confirmed homogeneity of variance among factor levels within OBS_YEAR
+car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
+car::Anova(modR.pocs, type = 3, test.statistic = "F") #only year signficant
+car::Anova(modR.mosp, type = 3, test.statistic = "F") #nothing sig
+car::Anova(modR.posp, type = 3, test.statistic = "F") #all factors signficant
 
 
 # Post-hoc
 # Year
-y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_ad, family = "poisson", design = subset(des,DEPTH_BIN=="Shallow")) # All corals
-emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
+y <- svyglm((sqrt(Ave.od)) ~ OBS_YEAR*DEPTH_BIN, design=des.pocs) # All corals
+emmeans(y, pairwise ~ OBS_YEAR) #od increased from 2015 and 2018
 
-y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_ad, family = "poisson", design = des.pocs) # POCS
-summary(glht(y, mcp(OBS_YEAR="Tukey")))  # 2018 sig different than 2015 and 2023
-emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
+y <- svyglm(Ave.od ~ OBS_YEAR, design = subset(des.posp,DEPTH_BIN=="Shallow")) # POCS
+emmeans(y, pairwise ~ OBS_YEAR) #od increased from 2015 and 2018
+            
+y <- svyglm(Ave.od ~ OBS_YEAR, design = subset(des.posp,DEPTH_BIN=="Mid")) # POCS
+emmeans(y, pairwise ~ OBS_YEAR) #od increased from 2015 and 2018 then decreased from 2018-2023
 
-y <- svyglm(JuvColCount ~ DEPTH_BIN, offset = TRANSECTAREA_ad, family = "poisson", design = des) # POCS
-summary(glht(y, mcp(DEPTH_BIN="Tukey")))  # error
-emmeans(y, pairwise ~ DEPTH_BIN) #post-hoc option for a significant main effect
+y <- svyglm(Ave.od ~ OBS_YEAR, design = subset(des.posp,DEPTH_BIN=="Deep")) # POCS
+emmeans(y, pairwise ~ OBS_YEAR) #no changes at deep sites
 
 summary(glht(modR.pocs, mcp(OBS_YEAR="Tukey"))) # 2023 sig different from 2015
 summary(glht(modR.mosp, mcp(OBS_YEAR="Tukey"))) # 2023 and 2018 sig different than 2015
@@ -143,11 +162,11 @@ depth_mean_tot <- rbind(depth_mean, depth_mean_pocs, depth_mean_mosp, depth_mean
 
 # Plot Data
 s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
-            aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
+            aes(x = OBS_YEAR, y = Ave.od, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
   scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
   geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
-                aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
+                aes(ymin = Ave.od-se, ymax = Ave.od+se),
                 width = .2) +
   facet_wrap(~Genus, nrow = 1) +
   guides(fill="none") +
@@ -157,11 +176,11 @@ s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
   ggtitle("Shallow")
 
 m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"), 
-            aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
+            aes(x = OBS_YEAR, y = Ave.od, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
   scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
   geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
-                aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
+                aes(ymin = Ave.od-se, ymax = Ave.od+se),
                 width = .1) +
   facet_wrap(~Genus, nrow = 1) +
   guides(fill="none") +
@@ -171,11 +190,11 @@ m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
   ggtitle("Mid")
 
 d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"), 
-            aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
+            aes(x = OBS_YEAR, y = Ave.od, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
   scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
   geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
-                aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
+                aes(ymin = Ave.od-se, ymax = Ave.od+se),
                 width = .1) +
   facet_wrap(~Genus, nrow = 1) +
   guides(fill="none") +
@@ -185,11 +204,11 @@ d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
   ggtitle("Deep")
 
 tot <- ggplot(depth_mean, 
-              aes(x = OBS_YEAR, y = JuvColDen, fill = OBS_YEAR)) +
+              aes(x = OBS_YEAR, y = Ave.od, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
   scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
   geom_errorbar(data = depth_mean,
-                aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
+                aes(ymin = Ave.od-se, ymax = Ave.od+se),
                 width = .1) +
   facet_wrap(~DEPTH_BIN, nrow = 1) +
   guides(fill="none") +
