@@ -6,6 +6,7 @@ library(tidyverse)
 library(survey)
 library(car) #Anova w/ Type III SS function
 library(emmeans) #post-hoc options for Anova 
+library(performance)
 
 rm(list=ls())
 
@@ -63,12 +64,13 @@ bartlett.test(RV ~ DEPTH_BIN, dat)
 
 
 #Step 2: if passed shapiro and bartlett test, good to proceed with GLM, with inverse-probability weighting and design-based standard errors (aka using survey package)
-mod1<-svyglm(RV ~ DEPTH_BIN*OBS_YEAR, design=dat.des, family = gaussian()) #used gaussian for the size data (due to continuous, not count data)
+mod1<-svyglm(Q10.R ~ DEPTH_BIN*OBS_YEAR, design=dat.des, family = gaussian()) #used gaussian for the size data (due to continuous, not count data)
 Anova(mod1, type = 3, test.statistic = "F") 
 emmeans(mod1, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
 
-plot(mod1) #check out residuals etc of the fitted model for any issues
 
+plot(mod1) #check out residuals etc of the fitted model for any issues
+performance::check_model(mod1) #even fancier option
 
 
 #Step 2 alternate: if we didn't find parametric assumptions metin step 1, use this function instead
