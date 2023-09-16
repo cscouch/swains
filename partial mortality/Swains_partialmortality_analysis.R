@@ -54,6 +54,10 @@ site.sw$OBS_YEAR<-as.factor(site.sw$OBS_YEAR)
 site.sw.pocs <- site.sw %>% filter(GENUS_CODE == "POCS") # above code isn't 50 so here I'm looking at just total coral
 site.sw.mosp <- site.sw %>% filter(GENUS_CODE == "MOSP") # 
 site.sw.posp <- site.sw %>% filter(GENUS_CODE == "POSP") # 
+
+#remove NA values from POSP df (can't do this in the svyby function)
+site.sw.posp<-site.sw.posp[complete.cases(site.sw.posp), ]
+
 site.sw <- site.sw %>% filter(GENUS_CODE == "SSSS")
 
 #remove strata that have less than 2 sites
@@ -64,6 +68,7 @@ length(unique(site.sw$SITE))
 site.sw.pocs<-subset(site.sw.pocs,n>1)
 site.sw.mosp<-subset(site.sw.mosp,n>1)
 site.sw.posp<-subset(site.sw.posp,n>1)
+site.sw.posp<-subset(site.sw.posp, Strat_conc !="2018_Mid")
 
 #Check for duplicate sites- df should be empty
 site.sw %>% 
@@ -154,26 +159,31 @@ summary(glht(modR.posp, mcp(OBS_YEAR="Tukey"))) # 2023 and 2018 sig different th
 
 
 # Put all depth_mean dataframes together for plotting
-depth_mean$Genus <- paste("Total")
+#depth_mean$Genus <- paste("Total")
 depth_mean_pocs$Genus <- paste("Pocillopora")
 depth_mean_mosp$Genus <- paste("Montipora")
-depth_mean_posp$Genus <- paste("Porites")
-depth_mean_tot <- rbind(depth_mean, depth_mean_pocs, depth_mean_mosp, depth_mean_posp)
+#depth_mean_posp$Genus <- paste("Porites")
+depth_mean_tot <- rbind(depth_mean_pocs, depth_mean_mosp)
 
 # Plot Data
-s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
+s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
             aes(x = OBS_YEAR, y = Ave.od, group = Genus, fill = OBS_YEAR)) +
-  geom_bar(stat = "identity") + 
+  geom_bar(stat = "identity") +
   scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
-  geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
+  geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
                 aes(ymin = Ave.od-se, ymax = Ave.od+se),
                 width = .2) +
   facet_wrap(~Genus, nrow = 1) +
   guides(fill="none") +
+  
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank()) +
-  ggtitle("Shallow")
+        panel.grid.major = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+  # geom_text(aes(x=OBS_YEAR,y=Ave.od+se,label=c("","ns","","","ns","","a","b","b")),
+  #           position = position_dodge(),
+  #           vjust = -0.5) 
 
 m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"), 
             aes(x = OBS_YEAR, y = Ave.od, group = Genus, fill = OBS_YEAR)) +
@@ -186,8 +196,12 @@ m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
   guides(fill="none") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank())  +
-  ggtitle("Mid")
+        panel.grid.major = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+  # geom_text(aes(x=OBS_YEAR,y=Ave.od+se,label=c("","ns","","","ns","","a","a","b")),
+  #           position = position_dodge(),
+  #           vjust = -0.5) 
 
 d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"), 
             aes(x = OBS_YEAR, y = Ave.od, group = Genus, fill = OBS_YEAR)) +
@@ -200,8 +214,12 @@ d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
   guides(fill="none") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank())  +
-  ggtitle("Deep")
+        panel.grid.major = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+  # geom_text(aes(x=OBS_YEAR,y=Ave.od+se,label=c("a","b","b","","ns","","a","b","a")),
+  #           position = position_dodge(),
+  #           vjust = -0.5)   
 
 tot <- ggplot(depth_mean, 
               aes(x = OBS_YEAR, y = Ave.od, fill = OBS_YEAR)) +
@@ -215,10 +233,11 @@ tot <- ggplot(depth_mean,
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         panel.grid.major = element_blank()) 
+ytitle="Mean Old Dead"
+xtitle= "Year"
 
-
-install.packages("tidyselect")
-ggarrange(s, m, d, 
-          labels = c("Shallow", "Mid","Deep"),
-          nrow = 3)
+grid.arrange(s+ggtitle("Shallow"), m + ggtitle("Mid"), d+ ggtitle("Deep"), 
+             left = ytitle,
+             bottom = xtitle,
+             nrow = 3)
 

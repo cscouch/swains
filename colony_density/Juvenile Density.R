@@ -9,6 +9,11 @@ library(tidyr)
 library(survey)
 library(multcomp)
 library(emmeans)
+library(ggplot2)
+library(gridExtra)
+library(sjstats)
+library(pscl)
+library(svydiags)
 
 #LOAD site-level data
 site.data.gen2<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Data/Swains_sitedata_GENUS.csv")
@@ -99,62 +104,103 @@ depth_mean_posp<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des.posp,svymean,na.rm.all
 depth_mean
 
 #  Test fixed effects of region and year
-modR<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_ad, family = "poisson", design=des) # all significant
-modR.pocs<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_ad,family = "poisson", design=des.pocs) # Year and depth significant
-modR.mosp<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_ad,family = "poisson", design=des.mosp) # Depth and year:depth significant
-modR.posp<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_ad,family = "poisson", design=des.posp) # Depth significant
+modR<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_j, family = "poisson", design=des) # all significant
+modR.pocs<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_j,family = "poisson", design=des.pocs) # Year and depth significant
+modR.mosp<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_j,family = "poisson", design=des.mosp) # Depth and year:depth significant
+modR.posp<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_j,family = "poisson", design=des.posp) # Depth significant
 
-summary(modR); summary(modR.pocs); summary(modR.mosp); summary(modR.posp)
-car::Anova(modR, type = 3, test.statistic = "F") #only year sig
-car::Anova(modR.pocs, type = 3, test.statistic = "F") #year and the interaction sig
-car::Anova(modR.mosp, type = 3, test.statistic = "F") #all factors and interaction sig
-car::Anova(modR.posp, type = 3, test.statistic = "F") #all factors and interaction sig
+car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
 
-library(svydiags)
-svyqqplot(JuvColDen~OBS_YEAR, design=des)
-svystdres(modR,doplot=TRUE) 
-bartlett.test(JuvColDen ~ OBS_YEAR, site.sw) #confirmed homogeneity of variance among factor levels within OBS_YEAR
+#Diagnositics
+svyqqplot(JuvColDen~OBS_YEAR, design=des.posp)
+svystdres(modR.posp,doplot=TRUE) 
+bartlett.test(JuvColDen ~ OBS_YEAR, site.sw.mosp)
+with(site.sw.mosp, tapply((sqrt(JuvColDen)), OBS_YEAR, shapiro.test)) #confirmed normal distribution among factor levels within OBS_YEAR
+#Take home: sqrt transform SSSS and MOSP, POCS and POSP use non-parametric stats
+
+
+#  Test fixed effects of region and year -Gausian models, having issues with structure in residuals in poisson models
+modR<-svyglm(sqrt(JuvColDen) ~ OBS_YEAR*DEPTH_BIN, design=des) # all significant
+modR.mosp<-svyglm(sqrt(JuvColDen) ~ OBS_YEAR*DEPTH_BIN, design=des.mosp) # Depth and year:depth significant
+
+svyranktest(JuvColDen ~ DEPTH_BIN, design=des.pocs, test=("KruskalWallis"))
+svyranktest(JuvColDen ~ OBS_YEAR, design=des.pocs, test=("KruskalWallis"))
+
+svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Shallow"), test=("KruskalWallis"))
+svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Mid"), test=("KruskalWallis"))
+#svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Deep"), test=("KruskalWallis"))
+
+
+svyranktest(JuvColDen ~ DEPTH_BIN, design=des.posp, test=("KruskalWallis"))
+svyranktest(JuvColDen ~ OBS_YEAR, design=des.posp, test=("KruskalWallis"))
+svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Shallow"), test=("KruskalWallis"))
+#svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Mid"), test=("KruskalWallis"))
+#svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Deep"), test=("KruskalWallis"))
+
+#fit <- svyglm.nb(JuvColCount ~ OBS_YEAR, design=des.posp)
+
+car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
+car::Anova(modR.mosp, type = 3, test.statistic = "F") #just depth bin sigificant
+
 
 
 # Post-hoc
 # Year
-y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_ad, family = "poisson", design = subset(des,DEPTH_BIN=="Shallow")) # All corals
-emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
-
-y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_ad, family = "poisson", design = des.pocs) # POCS
-summary(glht(y, mcp(OBS_YEAR="Tukey")))  # 2018 sig different than 2015 and 2023
-emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
-
-y <- svyglm(JuvColCount ~ DEPTH_BIN, offset = TRANSECTAREA_ad, family = "poisson", design = des) # POCS
-summary(glht(y, mcp(DEPTH_BIN="Tukey")))  # error
-emmeans(y, pairwise ~ DEPTH_BIN) #post-hoc option for a significant main effect
-
-summary(glht(modR.pocs, mcp(OBS_YEAR="Tukey"))) # 2023 sig different from 2015
-summary(glht(modR.mosp, mcp(OBS_YEAR="Tukey"))) # 2023 and 2018 sig different than 2015
-summary(glht(modR.posp, mcp(OBS_YEAR="Tukey"))) # 2023 and 2018 sig different than 2015
+# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = des) # All corals
+# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
+# 
+# #POCS
+# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.pocs,DEPTH_BIN=="Shallow")) # POCS
+# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
+# 
+# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.pocs,DEPTH_BIN=="Mid")) # POCS
+# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
+# 
+# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.pocs,DEPTH_BIN=="Deep")) # POCS
+# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
+# 
+# #POSP
+# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.posp,DEPTH_BIN=="Shallow")) 
+# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
+# 
+# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.posp,DEPTH_BIN=="Mid"))
+# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
+# 
+# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.posp,DEPTH_BIN=="Deep"))
+# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
 
 
 # Put all depth_mean dataframes together for plotting
-depth_mean$Genus <- paste("Total")
+#depth_mean$Genus <- paste("Total")
 depth_mean_pocs$Genus <- paste("Pocillopora")
 depth_mean_mosp$Genus <- paste("Montipora")
 depth_mean_posp$Genus <- paste("Porites")
-depth_mean_tot <- rbind(depth_mean, depth_mean_pocs, depth_mean_mosp, depth_mean_posp)
+depth_mean_tot <- rbind(depth_mean_pocs, depth_mean_mosp, depth_mean_posp)
 
 # Plot Data
-s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
+# depth_mean_tot$sig<-c("","ns","","","ns","","a","b","b",
+#                       "","ns","","","ns","","a","a","b",
+#                       "","ns","","a","b","b","a","b","a")
+
+s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
             aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
-  geom_bar(stat = "identity") + 
+  geom_bar(stat = "identity") +
   scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
-  geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
+  geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
                 aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
                 width = .2) +
   facet_wrap(~Genus, nrow = 1) +
   guides(fill="none") +
+  
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank()) +
-  ggtitle("Shallow")
+        panel.grid.major = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())+
+  scale_y_continuous(expand = c(0,0), limits = c(-0.1,6.5)) 
+  # geom_text(aes(x=OBS_YEAR,y=JuvColDen+se,label=c("","ns","","","ns","","a","b","b")),
+  #           position = position_dodge(),
+  #           vjust = -0.5) 
 
 m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"), 
             aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
@@ -167,8 +213,13 @@ m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
   guides(fill="none") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank())  +
-  ggtitle("Mid")
+        panel.grid.major = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())+
+  scale_y_continuous(expand = c(0,0), limits = c(-0.1,6.5))
+  # geom_text(aes(x=OBS_YEAR,y=JuvColDen+se,label=c("","ns","","","ns","","a","a","b")),
+  #           position = position_dodge(),
+  #           vjust = -0.5) 
 
 d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"), 
             aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
@@ -181,8 +232,13 @@ d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
   guides(fill="none") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank())  +
-  ggtitle("Deep")
+        panel.grid.major = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())+
+  scale_y_continuous(expand = c(0,0), limits = c(-0.1,6.5))
+  # geom_text(aes(x=OBS_YEAR,y=JuvColDen+se,label=c("a","b","b","","ns","","a","b","a")),
+  #           position = position_dodge(),
+  #           vjust = -0.5)   
 
 tot <- ggplot(depth_mean, 
               aes(x = OBS_YEAR, y = JuvColDen, fill = OBS_YEAR)) +
@@ -197,9 +253,60 @@ tot <- ggplot(depth_mean,
   theme(panel.grid.minor = element_blank(),
         panel.grid.major = element_blank()) 
 
+ytitle="Mean Juvenile Density"
+xtitle= "Year"
 
-install.packages("tidyselect")
-ggarrange(s, m, d, 
-          labels = c("Shallow", "Mid","Deep"),
+grid.arrange(s+ggtitle("Shallow"), m + ggtitle("Mid"), d+ ggtitle("Deep"), 
+          left = ytitle,
+          bottom = xtitle,
           nrow = 3)
 
+
+#Pooling across depths
+year_mean<-svyby(~JuvColDen,~OBS_YEAR,des,svymean,na.rm.all=TRUE)
+year_mean_pocs<-svyby(~JuvColDen,~OBS_YEAR,des.pocs,svymean,na.rm.all=TRUE)
+year_mean_mosp<-svyby(~JuvColDen,~OBS_YEAR,des.mosp,svymean,na.rm.all=TRUE)
+year_mean_posp<-svyby(~JuvColDen,~OBS_YEAR,des.posp,svymean,na.rm.all=TRUE)
+year_mean
+
+# Put all depth_mean dataframes together for plotting
+year_mean$Genus <- paste("Total")
+year_mean_pocs$Genus <- paste("Pocillopora")
+year_mean_mosp$Genus <- paste("Montipora")
+year_mean_posp$Genus <- paste("Porites")
+year_mean_tot <- rbind(year_mean,year_mean_pocs, year_mean_mosp, year_mean_posp)
+
+
+juv_yearplot<-ggplot(year_mean_tot, 
+       aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  geom_errorbar(data = year_mean_tot,
+                aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
+                width = .1) +
+  facet_wrap(~Genus, nrow = 1) +
+  guides(fill="none") +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.title.x = element_blank())+
+  scale_y_continuous(expand = c(0,0), limits = c(-0.1,5))+
+  geom_text(aes(x=OBS_YEAR,y=JuvColDen+se,label=c("","ns","","","ns","","","ns","","a","ab","b")),
+             position = position_dodge(),
+             vjust = -0.5)+
+  labs(x="",y=expression(paste("Mean Juvenile Colonies   ",m^-2)))
+  
+juv_yearplot
+
+#Post hoc for Porites
+l<-c("2015","2018","2023")
+ps<-matrix(NA,3,3)
+dimnames(ps)<-list(l,l)
+for(i in 1:2){
+  for(j in (i+1):3){
+    ps[i,j]<-svyranktest(JuvColDen~OBS_YEAR, subset(des.posp, OBS_YEAR %in% l[c(i,j)]))$p.value
+  }
+}
+ps
+
+p.adjust(ps[!is.na(ps)],method="hochberg")
