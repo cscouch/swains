@@ -1,0 +1,93 @@
+# This script will reads in the CLEANED/Analysis ready data that was generated using the following script
+#C:\Users\Courtney.S.Couch\Documents\GitHub\Benthic-Scripts\REA_CoralDemography\Generate REA data\REA Coral Demography_DataPrep.R
+#The script does some final tweaks to the data then generates Site-level data
+#These data only include surveys conducted between 2013-2019
+
+
+rm(list=ls())
+
+#Set Run Flags
+DEBUG=TRUE
+
+#LOAD LIBRARY FUNCTIONS ...
+source("C:/Users/Courtney.S.Couch/Documents/GitHub/Benthic-Scripts/Functions/Benthic_Functions_newApp_vTAOfork.R")
+source("C:/Users/Courtney.S.Couch/Documents/GitHub/fish-paste/lib/core_functions.R")
+source("C:/Users/Courtney.S.Couch/Documents/GitHub/fish-paste/lib/GIS_functions.R")
+
+## LOAD benthic data
+#awd<-read.csv("T:/Benthic/Data/REA Coral Demography & Cover/Analysis Ready Raw data/CoralBelt_Adults_raw_CLEANED.csv")
+awd<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Data/CoralBelt_Adults_raw_CLEANED_Swains_TAXONCODEMorph.csv")
+
+awd=subset(awd,ISLAND=="Swains")
+
+#Final Tweaks before calculating site-level data-------------------------------------------------
+#Colony fragments will be removed when you generate the site level data
+#We have denoted fragments differently over the course of our dataset. This code makes sure Fragment is 0 or -1 (-1 indicates it's a fragment)
+
+awd$Fragment<-ifelse(awd$OBS_YEAR <2018 & awd$COLONYLENGTH <5 & awd$S_ORDER=="Scleractinia",-1,awd$Fragment)
+head(subset(awd,Fragment==-1& OBS_YEAR<2018)) #double check that pre 2018 fragments create
+awd$Fragment[is.na(awd$Fragment)] <- 0
+awd$METHOD<-"DIVER"
+
+#Simplify Bleaching Severity categories: in 2019 the team decided to simplify the bleaching severity from 1-5 to 1-3 to improve consistency in severity values
+#This code converts the severity data collected prior to 2019 to a 1-3 scale
+awd$DATE_ <- ymd(awd$DATE_)
+
+#Create a look a table of all of the colony attributes- you will need this the functions below
+SURVEY_COL<-c("METHOD","DATE_","SITEVISITID", "OBS_YEAR", "REGION", "REGION_NAME", "ISLAND","ISLANDCODE","SEC_NAME", "SITE", "REEF_ZONE",
+              "DEPTH_BIN", "LATITUDE", "LONGITUDE","MIN_DEPTH_M","MAX_DEPTH_M","TRANSECT","SEGMENT","COLONYID","TAXONCODE_2","TAXONCODE","SPCODE","COLONYLENGTH")
+survey_colony<-unique(awd[,SURVEY_COL])
+
+SURVEY_SITE<-c("METHOD","MISSIONID","DATE_","SITEVISITID", "ANALYSIS_YEAR","OBS_YEAR", "REGION", "REGION_NAME", "ISLAND","ISLANDCODE","SEC_NAME", "SITE", "REEF_ZONE",
+               "DEPTH_BIN", "LATITUDE", "LONGITUDE","MIN_DEPTH_M","MAX_DEPTH_M")
+survey_site<-unique(awd[,SURVEY_SITE])
+
+
+
+# GENERATE SUMMARY METRICS at the transect-leveL BY GENUS--------------------------------------------------
+#Calc_ColDen_Transect
+acd.taxmorph<-Calc_ColDen_Transect(data = awd,grouping_field = "TAXONCODE_2");colnames(acd.taxmorph)[colnames(acd.taxmorph)=="ColCount"]<-"AdColCount";colnames(acd.taxmorph)[colnames(acd.taxmorph)=="ColDen"]<-"AdColDen";colnames(acd.taxmorph)[colnames(acd.taxmorph)=="TRANSECTAREA"]<-"TRANSECTAREA_ad"# calculate density at genus level as well as total
+
+#Remove METHOD from dataframes before merging
+acd.taxmorph<-subset(acd.taxmorph,select=-c(METHOD))
+
+#Add METHOD back in
+acd.taxmorph$METHOD<-"DIVER"
+
+head(acd.taxmorph)
+
+#Change NaN to NA
+is.nan.data.frame <- function(x)
+  do.call(cbind, lapply(x, is.nan))
+
+acd.taxmorph[is.nan(acd.taxmorph)] <- NA
+
+#There will be some NAs when you merge the juvenile and adult dataframes together because there may be some juvenile taxa that weren't observed as adults or juveniles
+#This code identifies which transects adult and juvenile colonies were recorded at and then converts NAs to 0s if needed
+ssss<-subset(acd.taxmorph,TAXONCODE_2=="SSSS")
+ssss$Ad_pres<-ifelse(is.na(ssss$AdColCount),"0","-1")
+
+ssss<-subset(ssss,select = c(SITE,SITEVISITID,TRANSECT,Ad_pres,TRANSECTAREA_ad)) 
+head(ssss)
+
+data.taxmorph<-left_join(subset(acd.taxmorph,select = -c(TRANSECTAREA_ad)),ssss) #use transect area from ssss because transectareas for some taxa were NA after merging adults and juvs
+
+data.taxmorph$AdColCount[is.na(data.taxmorph$AdColCount) & data.taxmorph$Ad_pres==-1]<-0;data.taxmorph$AdColDen[is.na(data.taxmorph$AdColDen) & data.taxmorph$Ad_pres==-1]<-0
+
+
+#Remove data from transects with less than 5m surveyed for adults and 1m for juvs.
+data.taxmorph$TRANSECTAREA_ad<-ifelse(data.taxmorph$TRANSECTAREA_ad<5,NA,data.taxmorph$TRANSECTAREA_ad);data.taxmorph[data.taxmorph$TRANSECTAREA_ad<5,]
+
+#Site-level data
+site.data.taxmorph2<-subset(data.taxmorph,TRANSECT==1) #drop transect 2 from 2015 data
+
+head(site.data.taxmorph2)
+
+
+#Merge Site Master with demographic data
+sm<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/SURVEY_MASTER_w2023benthic.csv", stringsAsFactors=FALSE)
+site.data.taxmorph2<-left_join(site.data.taxmorph2,sm[,c("OBS_YEAR","ISLAND","SEC_NAME","SITEVISITID","SITE","DEPTH_BIN","new_MIN_DEPTH_M","new_MAX_DEPTH_M")]) 
+
+#Write files
+write.csv(file="T:/Benthic/Projects/Swains 2023 Benthic Analysis/Data/Swains_sitedata_TAXONCODE_MORPH.csv",site.data.taxmorph2)
+

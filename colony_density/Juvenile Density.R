@@ -94,7 +94,6 @@ des.mosp<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.mosp)
 des.posp<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.posp)
 
 
-#Calculate regional mean and SE....of coral density?
 # depth_mean<-svyby(~CORAL,~OBS_YEAR+DEPTH_BIN,des,svymean) # Dont have "CORAL" column
 depth_mean<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des,svymean,na.rm.all=TRUE)
 depth_mean_pocs<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des.pocs,svymean,na.rm.all=TRUE)
@@ -103,7 +102,7 @@ depth_mean_posp<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des.posp,svymean,na.rm.all
 # depth_mean<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des,svymean)
 depth_mean
 
-#  Test fixed effects of region and year
+#  ORIGINAL MODEL STRUCTURE
 modR<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_j, family = "poisson", design=des) # all significant
 modR.pocs<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_j,family = "poisson", design=des.pocs) # Year and depth significant
 modR.mosp<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_j,family = "poisson", design=des.mosp) # Depth and year:depth significant
@@ -111,64 +110,46 @@ modR.posp<-svyglm(JuvColCount ~ OBS_YEAR*DEPTH_BIN, offset = TRANSECTAREA_j,fami
 
 car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
 
+#Shallow
+modR<-svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, design=subset(des,DEPTH_BIN=="Shallow")) # all significant
+modR.mosp<-svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, design=subset(des.mosp,DEPTH_BIN=="Shallow")) # Depth and year:depth significant
+car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
+car::Anova(modR.mosp, type = 3, test.statistic = "F") #nothing significant
+
+#Mid
+modR<-svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, design=subset(des,DEPTH_BIN=="Mid")) # all significant
+modR.mosp<-svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, design=subset(des.mosp,DEPTH_BIN=="Mid")) # Depth and year:depth significant
+car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
+car::Anova(modR.mosp, type = 3, test.statistic = "F") #nothing significant
+
+
+#Deep
+modR<-svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, design=subset(des,DEPTH_BIN=="Deep")) # all significant
+modR.mosp<-svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, design=subset(des.mosp,DEPTH_BIN=="Deep")) # Depth and year:depth significant
+car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
+car::Anova(modR.mosp, type = 3, test.statistic = "F") #nothing significant
+
+
 #Diagnositics
-svyqqplot(JuvColDen~OBS_YEAR, design=des.posp)
-svystdres(modR.posp,doplot=TRUE) 
-bartlett.test(JuvColDen ~ OBS_YEAR, site.sw.mosp)
+svyqqplot(JuvColDen~OBS_YEAR, design=subset(des,DEPTH_BIN=="Shallow"))
+
+svystdres(modR,doplot=TRUE) 
+bartlett.test(JuvColDen ~ OBS_YEAR, subset(site.sw,DEPTH_BIN="Shallow"))
 with(site.sw.mosp, tapply((sqrt(JuvColDen)), OBS_YEAR, shapiro.test)) #confirmed normal distribution among factor levels within OBS_YEAR
 #Take home: sqrt transform SSSS and MOSP, POCS and POSP use non-parametric stats
 
 
 #  Test fixed effects of region and year -Gausian models, having issues with structure in residuals in poisson models
-modR<-svyglm(sqrt(JuvColDen) ~ OBS_YEAR*DEPTH_BIN, design=des) # all significant
-modR.mosp<-svyglm(sqrt(JuvColDen) ~ OBS_YEAR*DEPTH_BIN, design=des.mosp) # Depth and year:depth significant
-
-svyranktest(JuvColDen ~ DEPTH_BIN, design=des.pocs, test=("KruskalWallis"))
-svyranktest(JuvColDen ~ OBS_YEAR, design=des.pocs, test=("KruskalWallis"))
-
 svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Shallow"), test=("KruskalWallis"))
 svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Mid"), test=("KruskalWallis"))
-#svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Deep"), test=("KruskalWallis"))
+# svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Deep"), test=("KruskalWallis")) #not enough colonies to run model (only 1 site across all years had POCS juves)
 
-
-svyranktest(JuvColDen ~ DEPTH_BIN, design=des.posp, test=("KruskalWallis"))
-svyranktest(JuvColDen ~ OBS_YEAR, design=des.posp, test=("KruskalWallis"))
 svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Shallow"), test=("KruskalWallis"))
-#svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Mid"), test=("KruskalWallis"))
-#svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Deep"), test=("KruskalWallis"))
+# svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Mid"), test=("KruskalWallis"))#not enough colonies to run model (only 1 site across all years had POSP juves)
+svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Deep"), test=("KruskalWallis"))
 
-#fit <- svyglm.nb(JuvColCount ~ OBS_YEAR, design=des.posp)
-
-car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
-car::Anova(modR.mosp, type = 3, test.statistic = "F") #just depth bin sigificant
-
-
-
-# Post-hoc
-# Year
-# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = des) # All corals
-# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
-# 
-# #POCS
-# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.pocs,DEPTH_BIN=="Shallow")) # POCS
-# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
-# 
-# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.pocs,DEPTH_BIN=="Mid")) # POCS
-# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
-# 
-# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.pocs,DEPTH_BIN=="Deep")) # POCS
-# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
-# 
-# #POSP
-# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.posp,DEPTH_BIN=="Shallow")) 
-# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
-# 
-# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.posp,DEPTH_BIN=="Mid"))
-# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
-# 
-# y <- svyglm(JuvColCount ~ OBS_YEAR, offset = TRANSECTAREA_j, family = "poisson", design = subset(des.posp,DEPTH_BIN=="Deep"))
-# emmeans(y, pairwise ~ OBS_YEAR) #post-hoc option for a significant main effect
-
+#Summary of results- 
+#No signficant effect of year for any of the taxa or depth bins.
 
 # Put all depth_mean dataframes together for plotting
 #depth_mean$Genus <- paste("Total")
@@ -299,6 +280,10 @@ juv_yearplot<-ggplot(year_mean_tot,
 juv_yearplot
 
 #Post hoc for Porites
+des.posp<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=subset(site.sw.posp,DEPTH_BIN=="Shallow"))
+
+
+
 l<-c("2015","2018","2023")
 ps<-matrix(NA,3,3)
 dimnames(ps)<-list(l,l)
