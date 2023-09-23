@@ -56,6 +56,11 @@ head(MOSP.sw)
 nrow(MOSP.sw) == n_distinct(MOSP.sw$SITE) #Check for duplicate sites
 
 MOSP.sw$Strat_conc<-as.factor(paste(MOSP.sw$OBS_YEAR, MOSP.sw$DEPTH_BIN,sep = "_"))
+#gather size classes into single response variable
+MOSP.sw <- MOSP.sw %>%
+  dplyr::select(DEPTH_BIN, OBS_YEAR, QJuv.R, Q10.R, QMed.R, Q90.R, sw, Strat_conc) %>%
+  gather ("SIZE_BIN", "PROP", -DEPTH_BIN, -OBS_YEAR, -sw, -Strat_conc) %>% 
+  mutate_if(is.character,as.factor)
 MOSP.des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=MOSP.sw)
 
 
@@ -71,6 +76,10 @@ head(POCS.sw)
 nrow(POCS.sw) == n_distinct(POCS.sw$SITE) #Check for duplicate sites
 
 POCS.sw$Strat_conc<-as.factor(paste(POCS.sw$OBS_YEAR, POCS.sw$DEPTH_BIN,sep = "_"))
+POCS.sw <- POCS.sw %>%
+  dplyr::select(DEPTH_BIN, OBS_YEAR, QJuv.R, Q10.R, QMed.R, Q90.R, sw, Strat_conc) %>%
+  gather ("SIZE_BIN", "PROP", -DEPTH_BIN, -OBS_YEAR, -sw, -Strat_conc) %>%
+  mutate_if(is.character,as.factor)
 POCS.des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=POCS.sw)
 
 
@@ -87,119 +96,183 @@ nrow(POSP.sw) == n_distinct(POSP.sw$SITE) #Check for duplicate sites
 
 POSP.sw<-filter(POSP.sw, n!= "1") #remove strata that have less than 2 sites
 
-POSP.sw$Strat_conc<-as.factor(paste(POSP.sw$OBS_YEAR, POSP.sw$DEPTH_BIN,sep = "_"))
+POSP.sw$Strat_conc<-(paste(POSP.sw$OBS_YEAR, POSP.sw$DEPTH_BIN,sep = "_"))
+POSP.sw <- POSP.sw %>%
+  dplyr::select(DEPTH_BIN, OBS_YEAR, QJuv.R, Q10.R, QMed.R, Q90.R, sw, Strat_conc) %>%
+  gather ("SIZE_BIN", "PROP", -DEPTH_BIN, -OBS_YEAR, -sw, -Strat_conc) %>%
+  mutate_if(is.character,as.factor)
 POSP.des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=POSP.sw)
 
 
-#dat
-w.df<-dat %>%
-  group_by(OBS_YEAR,DEPTH_BIN,NH) %>%
-  summarise(n = length(unique(SITE)))
-
-w.df$sw<-w.df$NH/w.df$n #calculate survey weights for each site
-dat.sw<-left_join(dat,w.df) #merge weights with site-level data
-dat.sw$DEPTH_BIN <- as.factor(dat.sw$DEPTH_BIN)
-head(dat.sw)
-nrow(dat.sw) == n_distinct(dat.sw$SITE) #Check for duplicate sites
-
-dat.sw<-filter(dat.sw, n!= "1") #remove strata that have less than 2 sites
-
-dat.sw$Strat_conc<-as.factor(paste(dat.sw$OBS_YEAR, dat.sw$DEPTH_BIN,sep = "_"))
-dat.des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=dat.sw)
 
 
+#### MEAN SIZE ANALYSIS: two-factor (YEAR *DEPTH) using site-level data for each depth strata-------------------------------
 
-#### MEAN SIZE ANALYSIS: two-factor (YEAR *DEPTH) using site-level data-------------------------------
+#MOSP-----
+#MOSP Shallow
 
-#Test fixed effects of region and year
-#MOSP
-MOSP1<-svyglm(QJuv.R ~ DEPTH_BIN*OBS_YEAR, design=MOSP.des)
-anova(MOSP1) 
-#NS
+#test parametric assumptions
+with(subset(MOSP.sw, DEPTH_BIN == "Shallow"), tapply((PROP), OBS_YEAR:SIZE_BIN, shapiro.test))
+bartlett.test(PROP ~ Strat_conc, subset(MOSP.sw, DEPTH_BIN == "Shallow")) 
 
-MOSP2<-svyglm(Q10.R ~ DEPTH_BIN*OBS_YEAR, design=MOSP.des)
-anova(MOSP2)
-#NS
+#run model
+modR.shallow<-svyglm(PROP ~SIZE_BIN*OBS_YEAR, design=subset(MOSP.des, DEPTH_BIN == "Shallow"))
+MOSP.shal <- Anova(modR.shallow, type = 3, test.statistic = "F") #significant inxn
+MOSP.shal
 
-MOSP3<-svyglm(QMed.R ~ DEPTH_BIN*OBS_YEAR, design=MOSP.des)
-anova(MOSP3)
-#NS
+#subset again by size bin
+modR.shallow<-svyglm(PROP ~OBS_YEAR, design=subset(MOSP.des, DEPTH_BIN == "Shallow" | SIZE_BIN == "QJuv.R"))
+Anova(modR.shallow, type = 3, test.statistic = "F") #NS; p =0.99 
 
-MOSP4<-svyglm(Q90.R ~ DEPTH_BIN*OBS_YEAR, design=MOSP.des)
-anova(MOSP4) #depth bin is significant
-emmeans(MOSP4, pairwise ~ DEPTH_BIN) #shallow differs from mod for the large size class only
+modR.shallow<-svyglm(PROP ~OBS_YEAR, design=subset(MOSP.des, DEPTH_BIN == "Shallow" | SIZE_BIN == "Q10.R"))
+Anova(modR.shallow, type = 3, test.statistic = "F") #NS; p =0.99 
 
+modR.shallow<-svyglm(PROP ~OBS_YEAR, design=subset(MOSP.des, DEPTH_BIN == "Shallow" | SIZE_BIN == "QMed.R"))
+Anova(modR.shallow, type = 3, test.statistic = "F") #NS; #NS; p =0.99 
 
-
-#POCS
-POCS1<-svyglm(QJuv.R ~ DEPTH_BIN*OBS_YEAR, design=POCS.des)
-anova(POCS1) 
-#NS
-
-POCS2<-svyglm(Q10.R ~ DEPTH_BIN*OBS_YEAR, design=POCS.des)
-anova(POCS2) #OBS year is barely significant
-emmeans(POCS2, pairwise ~ OBS_YEAR) #but no differences in post-hocs with adjusted p-values
-
-POCS3<-svyglm(QMed.R ~ DEPTH_BIN*OBS_YEAR, design=POCS.des)
-anova(POCS3)
-#NS
-
-POCS4<-svyglm(Q90.R ~ DEPTH_BIN*OBS_YEAR, design=POCS.des)
-anova(POCS4) #depth bin is significant
-emmeans(POCS4, pairwise ~ DEPTH_BIN) #shallow differs from mod for the large size class only
+modR.shallow<-svyglm(PROP ~OBS_YEAR, design=subset(MOSP.des, DEPTH_BIN == "Shallow" | SIZE_BIN == "Q90.R"))
+Anova(modR.shallow, type = 3, test.statistic = "F") #NS; p =0.99 
 
 
+#MOSP Mid
+
+#test parametric assumptions
+with(subset(MOSP.sw, DEPTH_BIN == "Mid"), tapply((PROP), OBS_YEAR:SIZE_BIN, shapiro.test))
+bartlett.test(PROP ~ Strat_conc, subset(MOSP.sw, DEPTH_BIN == "Mid")) 
+
+#run model
+modR.Mid<-svyglm(PROP ~SIZE_BIN*OBS_YEAR, design=subset(MOSP.des, DEPTH_BIN == "Mid"))
+MOSP.mid <- Anova(modR.Mid, type = 3, test.statistic = "F")
+MOSP.mid #no significant interaction
+
+#MOSP Deep
+
+#test parametric assumptions
+with(subset(MOSP.sw, DEPTH_BIN == "Deep"), tapply((PROP), OBS_YEAR:SIZE_BIN, shapiro.test))
+bartlett.test(PROP ~ Strat_conc, subset(MOSP.sw, DEPTH_BIN == "Deep")) 
+
+#run model
+modR.Deep<-svyglm(PROP ~SIZE_BIN*OBS_YEAR, design=subset(MOSP.des, DEPTH_BIN == "Deep"))
+MOSP.Deep <- Anova(modR.Deep, type = 3, test.statistic = "F") 
+MOSP.Deep #no significant interaction
 
 
-#POSP
-POSP1<-svyglm(QJuv.R ~ DEPTH_BIN*OBS_YEAR, design=POSP.des)
-anova(POSP1) 
-#NS
+####POSP----
+#POSP Shallow
 
-POSP2<-svyglm(Q10.R ~ DEPTH_BIN*OBS_YEAR, design=POSP.des)
-anova(POSP2) 
-#NS
+#test parametric assumptions
+with(subset(POSP.sw, DEPTH_BIN == "Shallow"), tapply((PROP), OBS_YEAR:SIZE_BIN, shapiro.test))
+bartlett.test(PROP ~ Strat_conc, subset(POSP.sw, DEPTH_BIN == "Shallow")) 
 
-POSP3<-svyglm(QMed.R ~ DEPTH_BIN*OBS_YEAR, design=POSP.des)
-anova(POSP3)
-#NS
+#run model
+modR.shallow<-svyglm(PROP ~SIZE_BIN*OBS_YEAR, design=subset(POSP.des, DEPTH_BIN == "Shallow"))
+POSP.shal <- Anova(modR.shallow, type = 3, test.statistic = "F") #significant inxn
+POSP.shal #no significant interaction
 
-POSP4<-svyglm(Q90.R ~ DEPTH_BIN*OBS_YEAR, design=POSP.des)
-anova(POSP4) #OBS_YEAR is significant
-emmeans(POSP4, pairwise ~ OBS_YEAR) #hmmm.....seems misleading...no data?
+#POSP Mid
 
+#test parametric assumptions
+with(subset(POSP.sw, DEPTH_BIN == "Mid"), tapply((PROP), OBS_YEAR:SIZE_BIN, shapiro.test))
+bartlett.test(PROP ~ Strat_conc, subset(POSP.sw, DEPTH_BIN == "Mid")) 
 
+#run model
+modR.Mid<-svyglm(PROP ~SIZE_BIN*OBS_YEAR, design=subset(POSP.des, DEPTH_BIN == "Mid"))
+POSP.mid <- Anova(modR.Mid, type = 3, test.statistic = "F")
+POSP.mid #no significant interaction
 
-#dat: mean and SD for each of the three taxa
+#POSP Deep
 
-M.MOSP1<-svyglm(MOSP.MEAN ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
-anova(M.MOSP1)  #Depth bin is significant (p = 0.02)
-emmeans(M.MOSP1, pairwise ~ DEPTH_BIN) #mid > shallow (P = 0.06)
+#test parametric assumptions
+with(subset(POSP.sw, DEPTH_BIN == "Deep"), tapply((PROP), OBS_YEAR:SIZE_BIN, shapiro.test))
+bartlett.test(PROP ~ Strat_conc, subset(POSP.sw, DEPTH_BIN == "Deep")) 
 
-SD.MOSP1<-svyglm(MOSP.SD ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
-anova(SD.MOSP1) 
-#NS
-
-
-M.POSP1<-svyglm(POSP.MEAN ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
-anova(M.POSP1)  
-#NS
-
-SD.POSP1<-svyglm(POSP.SD ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
-anova(SD.POSP1) 
-#NS
+#run model
+modR.Deep<-svyglm(PROP ~SIZE_BIN*OBS_YEAR, design=subset(POSP.des, DEPTH_BIN == "Deep"))
+POSP.Deep <- Anova(modR.Deep, type = 3, test.statistic = "F") 
+POSP.Deep #no significant interaction
 
 
-M.POCS1<-svyglm(POCS.MEAN ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
-anova(M.POCS1)  
-#NS
 
-SD.POCS1<-svyglm(POCS.SD ~ DEPTH_BIN*OBS_YEAR, design=dat.des)
-anova(SD.POCS1)  #Depth bin is significant (p = 0.029)
-emmeans(SD.POCS1, pairwise ~ DEPTH_BIN) #deep > shallow (P = 0.0013)
+
+####POCS----
+#POCS Shallow
+
+#test parametric assumptions
+with(subset(POCS.sw, DEPTH_BIN == "Shallow"), tapply((PROP), OBS_YEAR:SIZE_BIN, shapiro.test))
+bartlett.test(PROP ~ Strat_conc, subset(POCS.sw, DEPTH_BIN == "Shallow")) 
+
+#run model
+modR.shallow<-svyglm(PROP ~SIZE_BIN*OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Shallow"))
+POCS.shal <- Anova(modR.shallow, type = 3, test.statistic = "F") #significant inxn
+POCS.shal
+
+
+#subset again by size bin
+modR.shallow<-svyglm(PROP ~OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Shallow" | SIZE_BIN == "QJuv.R"))
+Anova(modR.shallow, type = 3, test.statistic = "F") #NS; p =0.99 
+
+modR.shallow<-svyglm(PROP ~OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Shallow" | SIZE_BIN == "Q10.R"))
+Anova(modR.shallow, type = 3, test.statistic = "F") #NS; p =0.99 
+
+modR.shallow<-svyglm(PROP ~OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Shallow" | SIZE_BIN == "QMed.R"))
+Anova(modR.shallow, type = 3, test.statistic = "F") #NS; #NS; p =0.99 
+
+modR.shallow<-svyglm(PROP ~OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Shallow" | SIZE_BIN == "Q90.R"))
+Anova(modR.shallow, type = 3, test.statistic = "F") #NS; p =0.99 
+
+
+
+#POCS Mid
+
+#test parametric assumptions
+with(subset(POCS.sw, DEPTH_BIN == "Mid"), tapply((PROP), OBS_YEAR:SIZE_BIN, shapiro.test))
+bartlett.test(PROP ~ Strat_conc, subset(POCS.sw, DEPTH_BIN == "Mid")) 
+
+#run model
+modR.Mid<-svyglm(PROP ~SIZE_BIN*OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Mid"))
+POCS.mid <- Anova(modR.Mid, type = 3, test.statistic = "F")
+POCS.mid #no significant interaction
+
+#POCS Deep
+
+#test parametric assumptions
+with(subset(POCS.sw, DEPTH_BIN == "Deep"), tapply((PROP), OBS_YEAR:SIZE_BIN, shapiro.test))
+bartlett.test(PROP ~ Strat_conc, subset(POCS.sw, DEPTH_BIN == "Deep")) 
+
+#run model
+modR.Deep<-svyglm(PROP ~SIZE_BIN*OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Deep"))
+POCS.Deep <- Anova(modR.Deep, type = 3, test.statistic = "F") 
+POCS.Deep #N.A. Not enough data to run fully crossed model
+
+#subset again by size bin
+modR.Deep<-svyglm(PROP ~OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Deep" | SIZE_BIN == "QJuv.R"))
+Anova(modR.Deep, type = 3, test.statistic = "F") #NS; p =0.91
+
+modR.Deep<-svyglm(PROP ~OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Deep" | SIZE_BIN == "Q10.R"))
+Anova(modR.Deep, type = 3, test.statistic = "F") #NS; p =0.052
+
+modR.Deep<-svyglm(PROP ~OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Deep" | SIZE_BIN == "QMed.R"))
+Anova(modR.Deep, type = 3, test.statistic = "F") #NS; #NS; p =0.378 
+
+modR.Deep<-svyglm(PROP ~OBS_YEAR, design=subset(POCS.des, DEPTH_BIN == "Deep" | SIZE_BIN == "Q90.R"))
+Anova(modR.Deep, type = 3, test.statistic = "F") #NS; p =0.3145 
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ####GRAPHIING -------------------------------
 setwd("C:/github/swains/colony_size")
+
 
 #Calculate means by depth as this was the only significant factor
 #MOSP
@@ -278,15 +351,15 @@ M1$BIN <- as.factor("Juv")
 M2$BIN <- as.factor("Sm")
 M3$BIN <- as.factor("Med")
 M4$BIN <- as.factor("Lg")
-POCS_summary <- rbind(M1,M2,M3,M4)
+POCS_summary_depth <- rbind(M1,M2,M3,M4)
 
-POCS_summary$group <- c( "", "", "",  
+POCS_summary_depth$group <- c( "", "", "",  
                          "", "", "",
                          "", "", "",
                          "AB", "B", "A")
 
 #bar plot of mean size
-g3 <- ggplot(POCS_summary, aes(x = BIN, y = mean, fill = Depth_Bin)) + 
+g3 <- ggplot(POCS_summary_depth, aes(x = BIN, y = mean, fill = Depth_Bin)) + 
   geom_bar(position="dodge", stat="identity") +
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=.2,position=position_dodge(.9)) +
   geom_text(data=POCS_summary,aes(x = BIN, y = mean+se, label=group), size = 4, position=position_dodge(0.9),  vjust = -0.65) +
@@ -313,10 +386,10 @@ P1$BIN <- as.factor("Juv")
 P2$BIN <- as.factor("Sm")
 P3$BIN <- as.factor("Med")
 P4$BIN <- as.factor("Lg")
-POSP_summary <- rbind(P1,P2,P3,P4)
+POSP_summary_year <- rbind(P1,P2,P3,P4)
 
 #bar plot
-g4 <- ggplot(POSP_summary, aes(x = BIN, y = mean, fill = Year)) + 
+g4 <- ggplot(POSP_summary_year, aes(x = BIN, y = mean, fill = Year)) + 
   geom_bar(position="dodge", stat="identity") +
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=.2,position=position_dodge(.9)) +
   #geom_text(data=POCS_summary,aes(x = BIN, y = mean+se, label=group), size = 4, position=position_dodge(0.9),  vjust = -0.65) +
@@ -330,3 +403,17 @@ g4
 ggsave ("POSP_final.jpeg", width =5, height =5, units = 'in')
 
 
+#POSP ---summary for two factor crossed
+P1<-svyby(~QJuv.R,~OBS_YEAR+DEPTH_BIN,POSP.des,svymean)
+P2<-svyby(~Q10.R,~OBS_YEAR+DEPTH_BIN,POSP.des,svymean)
+P3<-svyby(~QMed.R,~OBS_YEAR+DEPTH_BIN,POSP.des,svymean)
+P4<-svyby(~Q90.R,~OBS_YEAR+DEPTH_BIN,POSP.des,svymean)
+names(P1)<-c("Year", "Depth_Bin", "mean", "se")
+names(P2)<-c("Year", "Depth_Bin", "mean", "se")
+names(P3)<-c("Year", "Depth_Bin", "mean", "se")
+names(P4)<-c("Year", "Depth_Bin", "mean", "se")
+P1$BIN <- as.factor("Juv")
+P2$BIN <- as.factor("Sm")
+P3$BIN <- as.factor("Med")
+P4$BIN <- as.factor("Lg")
+POSP_summary_two.factor <- rbind(P1,P2,P3,P4)
