@@ -36,15 +36,20 @@ jwd$METHOD<-"DIVER"
 jwd<-subset(jwd,GENUS_CODE !="FUSP")
 awd<-subset(awd,GENUS_CODE !="FUSP")
 
+#Remove colonies <1cm
+jwd<-subset(jwd,COLONYLENGTH >=1)
 
-####ADD CODE HERE FOR CONCATENATING TAXON & MORPH ####
 
-
+#Quantify number of colonies between 5-10cm to add to juvenile density
+awd5_10<-subset(awd,COLONYLENGTH <=10)
+jcols<-colnames(jwd)
+awd5_10<-subset(awd5_10,select=jcols)
 
 #Simplify Bleaching Severity categories: in 2019 the team decided to simplify the bleaching severity from 1-5 to 1-3 to improve consistency in severity values
 #This code converts the severity data collected prior to 2019 to a 1-3 scale
 awd$DATE_ <- ymd(awd$DATE_)
 jwd$DATE_ <- ymd(jwd$DATE_)
+awd5_10$DATE_ <- ymd(awd5_10$DATE_)
 
 #Create a look a table of all of the colony attributes- you will need this the functions below
 SURVEY_COL<-c("METHOD","DATE_","SITEVISITID", "OBS_YEAR", "REGION", "REGION_NAME", "ISLAND","ISLANDCODE","SEC_NAME", "SITE", "REEF_ZONE",
@@ -72,6 +77,8 @@ survey_site<-survey_site[!duplicated(survey_site[,4]),]
 #Calc_ColDen_Transect
 acd.gen<-Calc_ColDen_Transect(data = awd,grouping_field = "GENUS_CODE");colnames(acd.gen)[colnames(acd.gen)=="ColCount"]<-"AdColCount";colnames(acd.gen)[colnames(acd.gen)=="ColDen"]<-"AdColDen";colnames(acd.gen)[colnames(acd.gen)=="TRANSECTAREA"]<-"TRANSECTAREA_ad"# calculate density at genus level as well as total
 jcd.gen<-Calc_ColDen_Transect(jwd,"GENUS_CODE"); colnames(jcd.gen)[colnames(jcd.gen)=="ColCount"]<-"JuvColCount";colnames(jcd.gen)[colnames(jcd.gen)=="ColDen"]<-"JuvColDen";colnames(jcd.gen)[colnames(jcd.gen)=="TRANSECTAREA"]<-"TRANSECTAREA_j"
+awd5_10.gen<-Calc_ColDen_Transect(awd5_10,"GENUS_CODE"); colnames(awd5_10.gen)[colnames(awd5_10.gen)=="ColCount"]<-"Ad5_10ColCount";colnames(awd5_10.gen)[colnames(awd5_10.gen)=="ColDen"]<-"Ad5_10ColDen"
+awd5_10.gen<-subset(awd5_10.gen,select=-c(TRANSECTAREA))
 
 #Calc_ColMetric_Transect
 cl.gen<-Calc_ColMetric_Transect(data = awd,grouping_field = "GENUS_CODE",pool_fields = "COLONYLENGTH"); colnames(cl.gen)[colnames(cl.gen)=="Ave.y"]<-"Ave.cl" #Average % old dead
@@ -86,6 +93,7 @@ jcd.gen$TRANSECT[jcd.gen$TRANSECT==4]<-2
 #Remove METHOD from dataframes before merging
 acd.gen<-subset(acd.gen,select=-c(METHOD))
 jcd.gen<-subset(jcd.gen,select=-c(METHOD))
+awd5_10.gen<-subset(awd5_10.gen,select=-c(METHOD))
 cl.gen<-subset(cl.gen,select=-c(METHOD))
 od.gen<-subset(od.gen,select=-c(METHOD))
 rd.gen<-subset(rd.gen,select=-c(METHOD))
@@ -95,8 +103,8 @@ MyMerge <- function(x, y){
   df <- merge(x, y, by= c("SITE","SITEVISITID","TRANSECT","GENUS_CODE"), all.x= TRUE, all.y= TRUE)
   return(df)
 }
-data.gen<-Reduce(MyMerge, list(acd.gen,jcd.gen,cl.gen,od.gen,rd.gen));
-
+data.gen<-Reduce(MyMerge, list(acd.gen,awd5_10.gen,jcd.gen,cl.gen,od.gen,rd.gen))
+head(data.gen)
 
 #Add METHOD back in
 data.gen$METHOD<-"DIVER"
@@ -121,13 +129,18 @@ head(ssss)
 
 data.gen<-left_join(subset(data.gen,select = -c(TRANSECTAREA_ad,TRANSECTAREA_j)),ssss) #use transect area from ssss because transectareas for some taxa were NA after merging adults and juvs
 
-data.gen$JuvColCount[is.na(data.gen$JuvColCount) & data.gen$Juv_pres==-1]<-0;data.gen$JuvColDen[is.na(data.gen$JuvColDen) & data.gen$Juv_pres==-1]<-0
+data.gen$JuvColCount[is.na(data.gen$JuvColCount)]<-0;data.gen$JuvColDen[is.na(data.gen$JuvColDen)]<-0
 data.gen$AdColCount[is.na(data.gen$AdColCount) & data.gen$Ad_pres==-1]<-0;data.gen$AdColDen[is.na(data.gen$AdColDen) & data.gen$Ad_pres==-1]<-0
+data.gen$Ad5_10ColCount[is.na(data.gen$Ad5_10ColCount)]<-0;data.gen$Ad5_10ColDen[is.na(data.gen$Ad5_10ColDen)]<-0
 
 
 #Remove data from transects with less than 5m surveyed for adults and 1m for juvs.
 data.gen$TRANSECTAREA_ad<-ifelse(data.gen$TRANSECTAREA_ad<5,NA,data.gen$TRANSECTAREA_ad);data.gen[data.gen$TRANSECTAREA_ad<5,]
 data.gen$TRANSECTAREA_j<-ifelse(data.gen$TRANSECTAREA_j<1,NA,data.gen$TRANSECTAREA_j);data.gen[data.gen$TRANSECTAREA_j<1,]
+
+#Calculate density of colonies <10cm
+data.gen$Juv10ColDen<-data.gen$Ad5_10ColDen+data.gen$JuvColDen
+
 
 #Site-level data
 site.data.gen2<-subset(data.gen,TRANSECT==1) #drop transect 2 from 2015 data
