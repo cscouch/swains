@@ -237,8 +237,8 @@ depth_mean_tot <- rbind(depth_mean, depth_mean_pocs, depth_mean_mosp, depth_mean
 s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
             aes(x = OBS_YEAR, y = AdColDen, group = Genus, fill = OBS_YEAR)) +
         geom_bar(stat = "identity") + 
-        scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
-        geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
+  geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
                       aes(ymin = AdColDen-se, ymax = AdColDen+se),
                       width = .2) +
         geom_text(aes(x=OBS_YEAR,y=AdColDen+se,label=sig, group = Genus),
@@ -256,8 +256,8 @@ s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
 m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"), 
             aes(x = OBS_YEAR, y = AdColDen, group = Genus, fill = OBS_YEAR)) +
         geom_bar(stat = "identity") + 
-        scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
-        geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
+  geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
                       aes(ymin = AdColDen-se, ymax = AdColDen+se),
                       width = .1) +
         geom_text(aes(x=OBS_YEAR,y=AdColDen+se,label=sig, group = Genus),
@@ -275,8 +275,8 @@ m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
 d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"), 
             aes(x = OBS_YEAR, y = AdColDen, group = Genus, fill = OBS_YEAR)) +
         geom_bar(stat = "identity") + 
-        scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
-        geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
+  geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
                       aes(ymin = AdColDen-se, ymax = AdColDen+se),
                       width = .1) +
         geom_text(aes(x=OBS_YEAR,y=AdColDen+se,label=sig, group = Genus),
@@ -407,8 +407,8 @@ hist(ssss$dead)
 s <- ggplot(od_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
             aes(x=OBS_YEAR, y=dead, fill=OBS_YEAR, group = Genus)) +
             geom_bar(stat = "identity") +
-            scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
-            geom_errorbar(data = od_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
+  geom_errorbar(data = od_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
                           aes(ymin=dead-se, ymax=dead+se), width = .1) +
             geom_text(aes(x=OBS_YEAR,y=dead+se+3,label=sig, group = Genus),
                       position = position_dodge()) +
@@ -426,8 +426,8 @@ s <- ggplot(od_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
                   axis.text.y = element_text(colour="black"),
                   axis.text.x = element_text(size=12),
                   axis.title.y = element_text(size = 14, face = "bold")) +
-            scale_fill_viridis_d() +
-            labs(x="",y="")+
+       scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
+      labs(x="",y="")+
             scale_y_continuous(expand = c(0,0), limits = c(0,41))+
             ggtitle("Shallow")
 
@@ -453,7 +453,7 @@ m <- ggplot(od_mean_tot %>% filter(DEPTH_BIN == "Mid"),
             axis.text.y = element_text(colour="black"),
             axis.text.x = element_text(size=12),
             axis.title.y = element_text(size = 13, face = "bold")) +
-      scale_fill_viridis_d() +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
       labs(x="",y=expression(paste("Mean % Old Dead")))+
       scale_y_continuous(expand = c(0,0), limits = c(0,41))+
       ggtitle("Mid")
@@ -480,8 +480,8 @@ d <- ggplot(od_mean_tot %>% filter(DEPTH_BIN == "Deep"),
             axis.text.y = element_text(colour="black"),
             axis.text.x = element_text(size=12),
             axis.title.x = element_text(size = 13, face = "bold")) +
-      scale_fill_viridis_d() +
-      labs(x="Year",y="")+
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
+  labs(x="Year",y="")+
       scale_y_continuous(expand = c(0,0), limits = c(0,41))+
       ggtitle("Deep")
 
@@ -644,24 +644,24 @@ depth_mean_tot <- rbind(depth_mean_pgwc,depth_mean_pospem,depth_mean_pospmd,
 # Plot Data
 s <- ggplot(depth_mean_tot, aes(x = OBS_YEAR, y = AdColDen, group = Genus, fill = OBS_YEAR)) +
         geom_bar(stat = "identity") + 
-        scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
-        geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
+  geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"), 
                       aes(ymin = AdColDen-se, ymax = AdColDen+se),
                       width = .3) +
         geom_text(aes(x=OBS_YEAR,y=AdColDen+se,label=sig, group = Genus),
-                  position = position_dodge(), size = 6,
+                  position = position_dodge(), size = 4,
                   vjust = -0.5) +
         facet_wrap(~Genus,nrow = 2, labeller = label_wrap_gen(width = 16)) +
         guides(fill="none") +
         theme_bw() +
         ylim(0,8.9) +
         theme(panel.grid.minor = element_blank(),
-              panel.grid.major = element_blank(),
-              strip.text.x = element_text(size = 15, face = "bold"),
-              axis.text.x = element_text(size = 13, face = "bold"),
-              axis.text.y = element_text(size = 13, face = "bold"),
-              axis.title.x = element_text(size=15, face = "bold"),
-              axis.title.y = element_text(size=15, face = "bold"))+
+              panel.grid.major = element_blank())+
+              #strip.text.x = element_text(size = 15, face = "bold"),
+              # axis.text.x = element_text(size = 13, face = "bold"),
+              # axis.text.y = element_text(size = 13, face = "bold"),
+              # axis.title.x = element_text(size=15, face = "bold"),
+              # axis.title.y = element_text(size=15, face = "bold"))+
         ylab("Mean Adult Colonies m - 2") +
         xlab("Year")
         # ggtitle("Shallow")
@@ -670,6 +670,7 @@ s <- ggplot(depth_mean_tot, aes(x = OBS_YEAR, y = AdColDen, group = Genus, fill 
         #            "P. grandis/woodjonsei complex","Encrusting Porites spp.", "Encrusting Montipora spp.")),
 
 
+ggsave(plot=s,file="T:/Benthic/Projects/Swains 2023 Benthic Analysis/Plots/Figure5.jpg",width=8,height=5)
 
 
 #### Partial Mortality using SIMPER results ####
