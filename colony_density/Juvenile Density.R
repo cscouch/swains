@@ -169,7 +169,7 @@ depth_mean_tot <- rbind(depth_mean_pocs, depth_mean_mosp, depth_mean_posp)
 s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
             aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") +
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
                 aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
                 width = .2) +
@@ -189,7 +189,7 @@ s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
 m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"), 
             aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
                 aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
                 width = .1) +
@@ -208,7 +208,7 @@ m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
 d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"), 
             aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
                 aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
                 width = .1) +
@@ -227,7 +227,7 @@ d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
 tot <- ggplot(depth_mean, 
               aes(x = OBS_YEAR, y = JuvColDen, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = depth_mean,
                 aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
                 width = .1) +
@@ -237,13 +237,16 @@ tot <- ggplot(depth_mean,
   theme(panel.grid.minor = element_blank(),
         panel.grid.major = element_blank()) 
 
-ytitle="Mean Juvenile Density"
+ytitle= "Mean Juvenile Colonies m-2"
 xtitle= "Year"
 
-grid.arrange(s+ggtitle("Shallow"), m + ggtitle("Mid"), d+ ggtitle("Deep"), 
+juv.plot<-grid.arrange(s+ggtitle("Shallow"), m + ggtitle("Mid"), d+ ggtitle("Deep"), 
           left = ytitle,
           bottom = xtitle,
           nrow = 3)
+
+ggsave(plot=juv.plot,file="T:/Benthic/Projects/Swains 2023 Benthic Analysis/Plots/FigureS3.jpg",width=10,height=8)
+
 
 
 #Pooling across depths
@@ -264,7 +267,7 @@ year_mean_tot <- rbind(year_mean,year_mean_pocs, year_mean_mosp, year_mean_posp)
 juv_yearplot<-ggplot(year_mean_tot, 
        aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = year_mean_tot,
                 aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
                 width = .1) +
@@ -385,7 +388,7 @@ depth_mean_tot <- rbind(depth_mean_pocs, depth_mean_mosp, depth_mean_posp)
 s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
             aes(x = OBS_YEAR, y = Juv10ColDen, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") +
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
                 aes(ymin = Juv10ColDen-se, ymax = Juv10ColDen+se),
                 width = .2) +
@@ -405,7 +408,7 @@ s <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Shallow"),
 m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"), 
             aes(x = OBS_YEAR, y = Juv10ColDen, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
                 aes(ymin = Juv10ColDen-se, ymax = Juv10ColDen+se),
                 width = .1) +
@@ -424,7 +427,7 @@ m <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Mid"),
 d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"), 
             aes(x = OBS_YEAR, y = Juv10ColDen, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
                 aes(ymin = Juv10ColDen-se, ymax = Juv10ColDen+se),
                 width = .1) +
@@ -443,7 +446,7 @@ d <- ggplot(depth_mean_tot %>% filter(DEPTH_BIN == "Deep"),
 tot <- ggplot(depth_mean, 
               aes(x = OBS_YEAR, y = Juv10ColDen, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = depth_mean,
                 aes(ymin = Juv10ColDen-se, ymax = Juv10ColDen+se),
                 width = .1) +
@@ -480,7 +483,7 @@ year_mean_tot <- rbind(year_mean,year_mean_pocs, year_mean_mosp, year_mean_posp)
 juv_yearplot<-ggplot(year_mean_tot, 
                      aes(x = OBS_YEAR, y = JuvColDen, group = Genus, fill = OBS_YEAR)) +
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values = alpha(c("#440154FF","#22A884FF","#FDE725FF"))) +
+  scale_fill_manual(values = alpha(c("#FF8C00","#44BB99","#AA4499"))) +
   geom_errorbar(data = year_mean_tot,
                 aes(ymin = JuvColDen-se, ymax = JuvColDen+se),
                 width = .1) +

@@ -47,12 +47,15 @@ survey_site<-unique(awd[,SURVEY_SITE])
 # GENERATE SUMMARY METRICS at the transect-leveL BY GENUS--------------------------------------------------
 #Calc_ColDen_Transect
 acd.taxmorph<-Calc_ColDen_Transect(data = awd,grouping_field = "TAXONCODE_2");colnames(acd.taxmorph)[colnames(acd.taxmorph)=="ColCount"]<-"AdColCount";colnames(acd.taxmorph)[colnames(acd.taxmorph)=="ColDen"]<-"AdColDen";colnames(acd.taxmorph)[colnames(acd.taxmorph)=="TRANSECTAREA"]<-"TRANSECTAREA_ad"# calculate density at genus level as well as total
+od.taxmorph<-Calc_ColMetric_Transect(data = awd,grouping_field = "TAXONCODE_2",pool_fields = "OLDDEAD"); colnames(od.taxmorph)[colnames(od.taxmorph)=="Ave.y"]<-"Ave.od" #Average % old dead
 
 #Remove METHOD from dataframes before merging
 acd.taxmorph<-subset(acd.taxmorph,select=-c(METHOD))
+od.taxmorph<-subset(od.taxmorph,select=-c(METHOD))
 
 #Add METHOD back in
 acd.taxmorph$METHOD<-"DIVER"
+od.taxmorph$METHOD<-"DIVER"
 
 head(acd.taxmorph)
 
@@ -62,15 +65,20 @@ is.nan.data.frame <- function(x)
 
 acd.taxmorph[is.nan(acd.taxmorph)] <- NA
 
+
+#Merge density and partial mortality data together
+data.taxmorph<-left_join(acd.taxmorph,od.taxmorph)
+
+
 #There will be some NAs when you merge the juvenile and adult dataframes together because there may be some juvenile taxa that weren't observed as adults or juveniles
 #This code identifies which transects adult and juvenile colonies were recorded at and then converts NAs to 0s if needed
-ssss<-subset(acd.taxmorph,TAXONCODE_2=="SSSS")
+ssss<-subset(data.taxmorph,TAXONCODE_2=="SSSS")
 ssss$Ad_pres<-ifelse(is.na(ssss$AdColCount),"0","-1")
 
 ssss<-subset(ssss,select = c(SITE,SITEVISITID,TRANSECT,Ad_pres,TRANSECTAREA_ad)) 
 head(ssss)
 
-data.taxmorph<-left_join(subset(acd.taxmorph,select = -c(TRANSECTAREA_ad)),ssss) #use transect area from ssss because transectareas for some taxa were NA after merging adults and juvs
+data.taxmorph<-left_join(subset(data.taxmorph,select = -c(TRANSECTAREA_ad)),ssss) #use transect area from ssss because transectareas for some taxa were NA after merging adults and juvs
 
 data.taxmorph$AdColCount[is.na(data.taxmorph$AdColCount) & data.taxmorph$Ad_pres==-1]<-0;data.taxmorph$AdColDen[is.na(data.taxmorph$AdColDen) & data.taxmorph$Ad_pres==-1]<-0
 
