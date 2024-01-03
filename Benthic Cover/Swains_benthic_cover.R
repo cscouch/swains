@@ -27,6 +27,7 @@ source("C:/Users/jonathan.charendoff/Documents/GitHub/fish-paste/lib/core_functi
 source("C:/Users/jonathan.charendoff/Documents/GitHub/fish-paste/lib/fish_team_functions.R")
 source("C:/Users/jonathan.charendoff/Documents/GitHub/fish-paste/lib/Islandwide Mean&Variance Functions.R")
 
+#read in coralnet lookup table and reorganize
 lu<-read.csv("T:/Benthic/Data/Lookup Tables/All_Photoquad_codes.csv")
 lu$CATEGORY_CODE<-lu$TIER_1
 lu$SUBCATEGORY_CODE<-lu$TIER_2b
@@ -38,14 +39,18 @@ lu$SUBCATEGORY_NAME<-lu$T2b_DESC
 lu$GENERA_NAME<-lu$T3_DESC
 colnames(lu)[colnames(lu)=="Cnet_SHORT_CODE"]<-"SHORT_CODE"
 
-#FUNCTIONAL GROUP LU TABLE
+#FUNCTIONAL GROUP LOOKUP TABLE
 new.grouping <- read.csv("C:/Users/Jonathan.Charendoff/Documents/GitHub/swains/Benthic Cover/Benthic_Cover_Lookup_Table.csv")
 
+#read in site level data for each tier
 t1 <- read.csv("T:/Benthic/Data/REA Coral Demography & Cover/Summary Data/Site/BenthicCover_2010-2023_Tier1_SITE.csv")
 t2 <- read.csv("T:/Benthic/Data/REA Coral Demography & Cover/Summary Data/Site/BenthicCover_2010-2023_Tier2b_SITE.csv")
 t3 <- read.csv("T:/Benthic/Data/REA Coral Demography & Cover/Summary Data/Site/BenthicCover_2010-2023_Tier3_SITE.csv")
+
+#read in strata-level data
 strata_T2 <- read.csv("T:/Benthic/Data/REA Coral Demography & Cover/Summary Data/Stratum/BenthicCover_2010-2022_Tier2_STRATA_updated.csv")
 
+#filter site data to only be swains, StRS and filter out columns we don't want
 swains_t1_w <- t1[t1$ISLAND == "Swains" & t1$Oceanography == 0,-(33:36)]
 swains_t2_w <- t2[t2$ISLAND == "Swains" & t2$Oceanography == 0,-(106:109)]
 swains_t3_w <- t3[t3$ISLAND == "Swains" ,-(127:130)]
@@ -56,27 +61,31 @@ swains_t1$TIER <- 1
 
 swains_t2 <- pivot_longer(swains_t2_w, cols = c(24:ncol(swains_t2_w)), names_to = "TAXA", values_to = "PERCENT")
 swains_t2$TIER <- 2
-test <- swains_t2 %>% 
-  group_by(TAXA) %>% 
-  summarise(zeros = sum(PERCENT))
-zeros <- test$TAXA[test$zeros == 0]
-swains_t2 <- swains_t2[-(which(swains_t2$TAXA %in% zeros)),]
-swains_t2$TAXA <- recode(swains_t2$TAXA, "MONS" = "ASTS")
-
-#NEW FUNCTIONAL GROUP LABELING
-swains_t2 <- left_join(swains_t2, new.grouping)
-swains_t2$New[is.na(swains_t2$New)] <- "Hard Coral"
-
-swains_t2_pooled <- swains_t2 %>% 
-  group_by(SITE, OBS_YEAR, DATE_, ANALYSIS_YEAR, new_MIN_DEPTH_M, new_MAX_DEPTH_M, LATITUDE, LONGITUDE, DEPTH_BIN, New) %>% 
-  summarise(Percent = sum(PERCENT))
-swains_t2_pooled_w <- pivot_wider(swains_t2_pooled, names_from = New, values_from = Percent)
 
 swains_t3 <- pivot_longer(swains_t3_w, cols = c(24:ncol(swains_t3_w)), names_to = "TAXA", values_to = "PERCENT")
 swains_t3$TIER <- 3
 
 all_tiers <- bind_rows(swains_t1, swains_t2, swains_t3)
 all_tiers <- all_tiers[-which(all_tiers$PERCENT == 0),]
+#remove taxa that are never present 
+test <- swains_t2 %>% 
+  group_by(TAXA) %>% 
+  dplyr::summarise(zeros = sum(PERCENT))
+zeros <- test$TAXA[test$zeros == 0]
+swains_t2 <- swains_t2[-(which(swains_t2$TAXA %in% zeros)),]
+
+#update montastrea to astrea
+swains_t2$TAXA <- recode(swains_t2$TAXA, "MONS" = "ASTS")
+
+#NEW FUNCTIONAL GROUP LABELING
+swains_t2 <- left_join(swains_t2, new.grouping)
+swains_t2$New[is.na(swains_t2$New)] <- "Hard Coral"
+
+#pool data with new functional grouping
+swains_t2_pooled <- swains_t2 %>% 
+  group_by(SITE, OBS_YEAR, DATE_, ANALYSIS_YEAR, new_MIN_DEPTH_M, new_MAX_DEPTH_M, LATITUDE, LONGITUDE, DEPTH_BIN, New) %>% 
+  dplyr::summarise(Percent = sum(PERCENT))
+swains_t2_pooled_w <- pivot_wider(swains_t2_pooled, names_from = New, values_from = Percent)
 
 
 #####surveyglm
@@ -99,9 +108,9 @@ swa_sa$DEPTH_BIN<-as.factor(swa_sa$DEPTH_BIN)
 
 NH <- swa_sa %>%
   group_by(SEC_NAME, DEPTH_BIN)%>%
-  summarize(unique = NH)%>%
+  dplyr::summarize(unique = NH)%>%
   group_by(DEPTH_BIN)%>%
-  summarise(NH = sum(unique))
+  dplyr::summarise(NH = sum(unique))
 
 swa<-left_join(swa,NH) #merge demo data with new NH values pooled across the 2 swains sectors
 
@@ -109,7 +118,7 @@ swa<-left_join(swa,NH) #merge demo data with new NH values pooled across the 2 s
 #Calculate survey weights (inverse proportion weighting)
 w.df<-swa %>%
   group_by(OBS_YEAR,DEPTH_BIN,NH) %>%
-  summarise(n = length(unique(SITE)))
+  dplyr::summarise(n = length(unique(SITE)))
 
 w.df$sw<-w.df$NH/w.df$n #calculate survey weights for each site
 
@@ -123,16 +132,19 @@ site.sw$DEPTH_BIN<-as.factor(site.sw$DEPTH_BIN)
 
 
 #remove strata that have less than 2 sites
-site.sw<-subset(site.sw,OBS_YEAR != "2010")
+#site.sw<-subset(site.sw,OBS_YEAR != "2010")
 
 site.sw.pool <- site.sw
 site.sw.pool$New <- recode_factor(site.sw.pool$New, "POSP"="Total Coral", "MOSP" = "Total Coral", "POCS" = "Total Coral",  "CCA" = "CCA", "Hard Coral" = "Total Coral", .default = "Other", "MICR" = "UPMA","UPMA" = "UPMA", "TURF" = "TURF", "EMA" = "EMA")
 site.sw.pool <- site.sw.pool %>% 
   group_by(SITE,OBS_YEAR,DATE_, ANALYSIS_YEAR, new_MIN_DEPTH_M, new_MAX_DEPTH_M, LATITUDE, LONGITUDE, DEPTH_BIN, New, NH, n, sw, Strat_conc) %>% 
-  summarise(Percent = sum(Percent))
+  dplyr::summarise(Percent = sum(Percent))
+site.sw.pool$Strat_conc<-paste(site.sw.pool$OBS_YEAR, site.sw.pool$DEPTH_BIN, site.sw.pool$New, sep = "_")
 
+options(survey.lonely.psu = "adjust")
 #FULL MODEL
 des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= subset(site.sw.pool, New != "Other"))
+
 
 #SUBSET SHALLOW
 modR.shallow<-svyglm(Percent/100 ~ New*OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow"), family = quasibinomial(link = "logit"))
@@ -180,7 +192,7 @@ post.deep$p.adj <-  p.adjust(post.deep$p.value, method = "BH")
 post.deep$strata <- "Deep"
 
 post.hocs <- dplyr::bind_rows(post.deep, post.mid, post.shal)
-write.csv(post.hocs, "T:/Benthic/Projects/Swains 2023 Benthic Analysis/Tables/BenthicCover_posthoc.csv")
+write.csv(post.hocs, "T:/Benthic/Projects/Swains 2023 Benthic Analysis/Tables/BenthicCover_posthoc_2010b.csv")
 write.csv(bind_rows(shal, mid, deep), "T:/Benthic/Projects/Swains 2023 Benthic Analysis/Tables/BenthicCover_anova.csv")
 
 
@@ -201,7 +213,7 @@ strata_T2_l$SE[is.na(strata_T2_l$SE)] <- 0
 #REMOVE TAXA THAT ARE NEVER PRESENT
 test <- strata_T2_l %>% 
   group_by(TAXA) %>% 
-  summarise(zeros = sum(Mean))
+  dplyr::summarise(zeros = sum(Mean))
 zeros <- test$TAXA[test$zeros == 0]
 strata_T2_l <- strata_T2_l[-(which(strata_T2_l$TAXA %in% zeros)),]
 
@@ -212,9 +224,9 @@ strata_T2_l <- left_join(strata_T2_l, new.grouping)
 strata_T2_l$variance <-(strata_T2_l$SE*sqrt(strata_T2_l$N))^2
 test.pool <- strata_T2_l %>% 
   group_by(REGION,ISLAND,STRATA, ANALYSIS_YEAR, AREA_HA, N, ISLANDCODE, New) %>% 
-  summarise(Mean = sum(Mean), variance = sum(variance))
+  dplyr::summarise(Mean = sum(Mean), variance = sum(variance))
 strata_T2_pooled <- test.pool %>% 
-  mutate(SE = sqrt(variance)/sqrt(N))
+  dplyr::mutate(SE = sqrt(variance)/sqrt(N))
 
 #RELABEL ANALYSIS YEAR
 strata_T2_pooled$ANALYSIS_YEAR[strata_T2_pooled$ANALYSIS_YEAR == "2015-16"] <- 2015
@@ -225,7 +237,7 @@ colnames(strata_T2_pooled)[8] <- "TAXA"
 strata_T1 <- read.csv("T:/Benthic/Data/REA Coral Demography & Cover/Summary Data/Stratum/BenthicCover_2010-2022_Tier1_STRATA_updated.csv")
 strata_T1 <- strata_T1[strata_T1$ISLAND == "Swains",]
 
-strata_T1_l <- pivot_longer(strata_T1, cols = c(9:24), names_to = "TAXA", values_to = "Mean")
+strata_T1_l <- pivot_longer(strata_T1, cols = c(9:28), names_to = "TAXA", values_to = "Mean")
 strata_mean <- strata_T1_l %>% filter(grepl('Mean.', TAXA))
 strata_mean$TAXA <- stringr::str_remove(strata_mean$TAXA, "Mean.")
 strata_SE <- strata_T1_l %>% filter(!grepl('Mean.', TAXA))
@@ -260,12 +272,23 @@ taxacolors <- c("black",
 
 strata_T2_pooled$Year <- as.character(lubridate::year(strata_T2_pooled$ANALYSIS_YEAR))
 
+strata.means <- svyby(~Percent, ~Strat_conc, des, svymean)
+strata.means <- strata.means %>% tidyr::separate(Strat_conc, sep = "_", into = c("OBS_YEAR", "DEPTH_BIN", "TAXA"))
+strata.means$OBS_YEAR <- as.Date(ISOdate(strata.means$OBS_YEAR,1,1))
 
-lines <- ggplot(subset(strata_T2_pooled, TAXA %in% c("Total Coral","CCA","UPMA", "TURF", "EMA")), aes(x = ANALYSIS_YEAR, y = Mean, color = TAXA)) + 
+taxalist <- c("Total Coral", 
+              "CCA","UPMA" , "TURF","EMA")
+taxacolors <- c("black",  
+                "hotpink1", "palegreen4", "limegreen","orange2")
+
+strata.means$TAXA <- factor(strata.means$TAXA, levels = taxalist)
+strata.means$DEPTH_BIN <- factor(strata.means$DEPTH_BIN, levels = c("Shallow", "Mid", "Deep"))
+
+lines <- ggplot(strata.means, aes(x = OBS_YEAR, y = Percent, color = TAXA)) + 
   geom_point(size = 4)+ 
   geom_line()+
-  geom_errorbar(aes(ymin = Mean - SE, ymax = Mean + SE), width = 1)+
-  facet_wrap(~STRATA, scales = "free_y", ncol = 1)+
+  geom_errorbar(aes(ymin = Percent - se, ymax = Percent + se), width = 1)+
+  facet_wrap(~DEPTH_BIN, scales = "free_y", ncol = 1)+
   scale_x_date(date_labels = "%Y", 
                date_breaks = "1 year", 
                limits = as.Date(c("2009-06-01", "2023-12-01")),
@@ -304,24 +327,31 @@ swains.temps$DEPTH_BIN <- factor(swains.temps$DEPTH_BIN, levels = c("Shallow", "
 
 swains.temps.monthly <- swains.temps %>% 
   group_by(DEPTH_BIN, YEAR, MONTH) %>% 
-  summarise(TEMP_C = mean(TEMP_C))
+  dplyr::summarise(TEMP_C = mean(TEMP_C))
 swains.temps.monthly$DATE <- as.Date(paste(swains.temps.monthly$YEAR, swains.temps.monthly$MONTH, "1",sep = "-"), format = "%Y-%m-%d")
 
 colors <- c("#AA4499" ,"#44BB99", "#FF8C00")
 
-STR_temps <- ggplot(swains.temps.monthly[swains.temps.monthly$YEAR %in% c(2015,2016),], aes(x = DATE, y = TEMP_C, color = DEPTH_BIN))+
+dhw <- c(2016-03-31, 2016-06-19)
+
+STR_temps <- 
+  
+ggplot(swains.temps.monthly[swains.temps.monthly$YEAR %in% c(2015,2016),], aes(x = DATE, y = TEMP_C, color = DEPTH_BIN))+
   geom_line()+
+  annotate("rect", xmin = as.Date("2016-03-31", format = "%Y-%m-%d"), xmax = as.Date("2016-06-19", format = "%Y-%m-%d"),ymin = -Inf, ymax = Inf,
+           alpha = .2)+
   scale_color_manual(values = colors)+
-  theme_bw()+
+  theme_classic()+
   labs(x = "Date",
        y = expression("Temperature " ( degree~C)),
        color = "Depth Bin")+
   theme(legend.text = element_text(size = 14),
         legend.title = element_text(size = 16),
-        axis.text = element_text(size = 14),
-        axis.title = element_text(size = 16))
+        axis.text = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 16),
+        axis.title.x = element_blank())
 
-ggsave("T:/Benthic/Projects/Swains 2023 Benthic Analysis/plots/STR_TEMPS.png", STR_temps, height = 8, width = 11)
+ggsave("T:/Benthic/Projects/Swains 2023 Benthic Analysis/plots/STR_TEMPS.png", STR_temps, height = 8, width = 8)
 
 
 ######Calcifiers#####
