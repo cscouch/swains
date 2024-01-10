@@ -18,7 +18,7 @@ source("C:/Users/jonathan.charendoff/Documents/GitHub/fish-paste/lib/Islandwide 
 
 #####surveyglm
 #LOAD site-level data
-swains_t2_pooled <- read.csv("C:/Users/Jonathan.Charendoff/Documents/GitHub/swains/Benthic Cover/Benthic_Cover_Ready.csv")
+swains_t2_pooled <- read.csv("C:/Users/Jonathan.Charendoff/Documents/GitHub/swains/Data/Benthic_Cover_Ready.csv")
 swa<-filter(swains_t2_pooled,new_MAX_DEPTH_M >=3) #subset sites deeper than 3m
 
 nrow(swa)

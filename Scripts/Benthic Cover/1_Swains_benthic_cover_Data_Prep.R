@@ -11,7 +11,7 @@ source("C:/Users/jonathan.charendoff/Documents/GitHub/fish-paste/lib/fish_team_f
 source("C:/Users/jonathan.charendoff/Documents/GitHub/fish-paste/lib/Islandwide Mean&Variance Functions.R")
 
 #FUNCTIONAL GROUP LOOKUP TABLE
-new.grouping <- read.csv("C:/Users/Jonathan.Charendoff/Documents/GitHub/swains/Benthic Cover/Benthic_Cover_Lookup_Table.csv")
+new.grouping <- read.csv("C:/Users/Jonathan.Charendoff/Documents/GitHub/swains/Scripts/Benthic Cover/Benthic_Cover_Lookup_Table.csv")
 
 #read in site level data for each tier
 t2 <- read.csv("T:/Benthic/Data/REA Coral Demography & Cover/Summary Data/Site/BenthicCover_2010-2023_Tier2b_SITE.csv")
@@ -46,4 +46,4 @@ swains_t2_pooled <- swains_t2 %>%
   dplyr::summarise(Percent = sum(PERCENT))
 
 #export cleaned data
-write.csv(swains_t2_pooled, "C:/Users/Jonathan.Charendoff/Documents/GitHub/swains/Benthic Cover/Benthic_Cover_Ready.csv")
+write.csv(swains_t2_pooled, "C:/Users/Jonathan.Charendoff/Documents/GitHub/swains/Data/Benthic_Cover_Ready.csv")
