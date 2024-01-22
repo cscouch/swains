@@ -2,7 +2,10 @@
 
 # Using R version 4.1.0 (2021-05-18)
 
+# This script will clean the raw colony-level NOAA NCRMP data
 rm(list=ls())
+dir = Sys.info()[7]
+setwd(paste0("C:/Users/", dir, "/Documents/GitHub/swains/"))
 
 library(dplyr)
 library(tidyr)
@@ -16,14 +19,14 @@ library(pscl)
 library(svydiags)
 
 #LOAD site-level data
-site.data.gen2<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Data/Swains_sitedata_GENUS.csv")
+site.data.gen2<-read.csv("Data/Swains_sitedata_GENUS.csv")
 
 swa<-filter(site.data.gen2,new_MAX_DEPTH_M >=3) #subset sites less than 3m?
 
 nrow(swa)
 
 #read in sector-area file
-sectors<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Sectors-Strata-Areas.csv", stringsAsFactors=FALSE)
+sectors<-read.csv("Data/Sectors-Strata-Areas.csv", stringsAsFactors=FALSE)
 swa_sa<-filter(sectors,ISLAND=="Swains")
 swa_sa$DEPTH_BIN<-as.factor(swa_sa$DEPTH_BIN)
 
@@ -48,7 +51,6 @@ site.sw<-left_join(swa,w.df) #merge weights with site-level data
 head(site.sw)
 
 nrow(site.sw) #should be 50
-
 
 
 #Create contactenated Strata variable 
@@ -99,6 +101,17 @@ depth_mean_posp<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des.posp,svymean,na.rm.all
 # depth_mean<-svyby(~JuvColDen,~OBS_YEAR+DEPTH_BIN,des,svymean)
 depth_mean
 
+#Total 
+#Shallow
+with(subset(site.sw, DEPTH_BIN == "Shallow"), tapply((JuvColDen), OBS_YEAR, shapiro.test))
+bartlett.test(JuvColDen ~ Strat_conc, subset(site.sw, DEPTH_BIN == "Shallow")) 
+site.sw.sh <- site.sw %>% filter(DEPTH_BIN == "Shallow") # 
+des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.sh)
+
+modR<-svyglm(JuvColDen ~ OBS_YEAR,  design=des) 
+car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
+
+
 
 #MOSP
 #Shallow
@@ -117,18 +130,46 @@ car::Anova(modR.mosp, type = 3, test.statistic = "F") #nothing significant
 #Deep
 with(subset(site.sw.mosp, DEPTH_BIN == "Deep"), tapply((JuvColDen), OBS_YEAR, shapiro.test))
 bartlett.test(JuvColDen ~ Strat_conc, subset(site.sw.mosp, DEPTH_BIN == "Deep")) 
-modR.mosp<-svyglm(JuvColDen ~ OBS_YEAR, design=subset(des.mosp,DEPTH_BIN=="Deep")) # Depth and year:depth significant
+modR.mosp<-svyglm(JuvColDen ~ OBS_YEAR, design=subset(des.mosp,DEPTH_BIN=="Deep")) 
 car::Anova(modR.mosp, type = 3, test.statistic = "F") #nothing significant
 
-#Take home: sqrt transform SSSS and MOSP, POCS and POSP use non-parametric stats
+
+#POCS
+#Shallow
+with(subset(site.sw.pocs, DEPTH_BIN == "Shallow"), tapply((sqrt(JuvColDen)), OBS_YEAR, shapiro.test))
+bartlett.test(sqrt(JuvColDen) ~ Strat_conc, subset(site.sw.pocs, DEPTH_BIN == "Shallow")) 
+site.sw.pocs.sh <- site.sw.pocs %>% filter(DEPTH_BIN == "Shallow") # 
+des.pocs.sh<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pocs.sh)
+modR.pocs<-svyglm(sqrt(JuvColDen) ~ OBS_YEAR,  design=des.pocs.sh) 
+car::Anova(modR.pocs, type = 3, test.statistic = "F") #nothing significant
+
+#Mid
+with(subset(site.sw.mosp, DEPTH_BIN == "Mid"), tapply((JuvColDen), OBS_YEAR, shapiro.test))
+bartlett.test(sqrt(JuvColDen) ~ Strat_conc, subset(site.sw.pocs, DEPTH_BIN == "Mid")) 
+site.sw.pocs.mid <- site.sw.pocs %>% filter(DEPTH_BIN == "Mid") # 
+des.pocs.mid<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pocs.mid)
+modR.pocs<-svyglm(JuvColDen ~ OBS_YEAR, design=subset(des.mosp,DEPTH_BIN=="Mid")) 
+car::Anova(modR.pocs, type = 3, test.statistic = "F") #nothing significant
 
 
-#  Test fixed effects of region and year -Gausian models, having issues with structure in residuals in poisson models
-svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Shallow"), test=("KruskalWallis"))
-svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Mid"), test=("KruskalWallis"))
+#Deep- use non parametric stats
+with(subset(site.sw.pocs, DEPTH_BIN == "Deep"), tapply((JuvColDen), OBS_YEAR, shapiro.test))
+bartlett.test(JuvColDen ~ Strat_conc, subset(site.sw.pocs, DEPTH_BIN == "Deep")) 
 #svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.pocs,DEPTH_BIN=="Deep"), test=("KruskalWallis")) #not enough colonies to run model (only 1 site across all years had POCS juves)
 
-svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Shallow"), test=("KruskalWallis"))
+#Take home: sqrt transform SSSS, MOSP, POCS, but POSP use non-parametric stats
+
+
+#POSP
+#Shallow
+with(subset(site.sw.posp, DEPTH_BIN == "Shallow"), tapply((sqrt(JuvColDen)), OBS_YEAR, shapiro.test))
+bartlett.test(sqrt(JuvColDen) ~ Strat_conc, subset(site.sw.posp, DEPTH_BIN == "Shallow")) 
+
+#
+site.sw.posp.sh <- site.sw.pocs %>% filter(DEPTH_BIN == "Shallow") # 
+des.posp.sh<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.posp.sh)
+
+svyranktest(JuvColDen ~ OBS_YEAR, design=des.posp.sh, test=("KruskalWallis"))
 # svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Mid"), test=("KruskalWallis"))#not enough colonies to run model (only 1 site across all years had POSP juves)
 svyranktest(JuvColDen ~ OBS_YEAR, design=subset(des.posp,DEPTH_BIN=="Deep"), test=("KruskalWallis"))
 
