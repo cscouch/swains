@@ -1,2 +1,2 @@
 # swains
-Benthic Mini-Swains paper
+2023 Swains Mini-benthic paper code
