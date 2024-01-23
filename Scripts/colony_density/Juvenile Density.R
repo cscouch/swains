@@ -7,8 +7,8 @@ rm(list=ls())
 dir = Sys.info()[7]
 setwd(paste0("C:/Users/", dir, "/Documents/GitHub/swains/"))
 
-library(dplyr)
 library(tidyr)
+library(dplyr)
 library(survey)
 library(multcomp)
 library(emmeans)
@@ -32,9 +32,9 @@ swa_sa$DEPTH_BIN<-as.factor(swa_sa$DEPTH_BIN)
 
 NH <- swa_sa %>%
   group_by(SEC_NAME, DEPTH_BIN)%>%
-  summarize(unique = NH)%>%
+  #summarize(unique = NH)%>%
   group_by(DEPTH_BIN)%>%
-  summarise(NH = sum(unique))
+  summarise(NH = sum(NH))
 
 swa<-left_join(swa,NH) #merge demo data with new NH values pooled across the 2 swains sectors
 
@@ -109,6 +109,8 @@ site.sw.sh <- site.sw %>% filter(DEPTH_BIN == "Shallow") #
 des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.sh)
 
 modR<-svyglm(JuvColDen ~ OBS_YEAR,  design=des) 
+modR<-svyglm(JuvColDen ~ OBS_YEAR,  design=subset(site.sw,DEPTH_BIN=="Shallow")) 
+
 car::Anova(modR, type = 3, test.statistic = "F") #nothing significant
 
 
