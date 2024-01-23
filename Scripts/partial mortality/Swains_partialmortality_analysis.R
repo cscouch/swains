@@ -8,18 +8,22 @@ library(dplyr)
 library(tidyr)
 library(survey)
 library(multcomp)
+library(ggplot2)
 library(emmeans)
 
 #LOAD site-level data
-site.data.gen2<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Data/Swains_sitedata_GENUS.csv")
+site.data.gen2<-read.csv("C:/Users/Corinne.Amir/Documents/GitHub/swains/Data/Swains_sitedata_GENUS.csv") # For genus results
+swam <- read.csv("C:/Users/Corinne.Amir/Documents/GitHub/swains/Data/Swains_sitedata_TAXONCODE_MORPH.csv") # For simper results
 
-swa<-filter(site.data.gen2,new_MAX_DEPTH_M >=3) #subset sites less than 3m?
+
+#### Genus level ####
+swa<-dplyr::filter(site.data.gen2,new_MAX_DEPTH_M >=3) #subset sites less than 3m?
 
 nrow(swa)
 
 #read in sector-area file
-sectors<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Sectors-Strata-Areas.csv", stringsAsFactors=FALSE)
-swa_sa<-filter(sectors,ISLAND=="Swains")
+sectors<-read.csv("C:/Users/Corinne.Amir/Documents/GitHub/swains/Data/Sectors-Strata-Areas.csv", stringsAsFactors=FALSE)
+swa_sa<-dplyr::filter(sectors,ISLAND=="Swains")
 swa_sa$DEPTH_BIN<-as.factor(swa_sa$DEPTH_BIN)
 
 NH <- swa_sa %>%
@@ -41,7 +45,7 @@ w.df$sw<-w.df$NH/w.df$n #calculate survey weights for each site
 site.sw<-left_join(swa,w.df) #merge weights with site-level data
 head(site.sw)
 
-nrow(site.sw) #should be 50
+nrow(site.sw)
 
 
 
@@ -50,7 +54,8 @@ nrow(site.sw) #should be 50
 site.sw$Strat_conc<-paste(site.sw$OBS_YEAR, site.sw$DEPTH_BIN,sep = "_")
 site.sw$OBS_YEAR<-as.factor(site.sw$OBS_YEAR)
 
-#Subset data
+
+#Subset data (selection based on most common genera)
 site.sw.pocs <- site.sw %>% filter(GENUS_CODE == "POCS") # above code isn't 50 so here I'm looking at just total coral
 site.sw.mosp <- site.sw %>% filter(GENUS_CODE == "MOSP") # 
 site.sw.posp <- site.sw %>% filter(GENUS_CODE == "POSP") # 
@@ -241,3 +246,159 @@ grid.arrange(s+ggtitle("Shallow"), m + ggtitle("Mid"), d+ ggtitle("Deep"),
              bottom = xtitle,
              nrow = 3)
 
+
+
+#### SIMPER taxa level ####
+# Merge demography data with new NH values pooled across the 2 swains sectors
+swam<-left_join(swam,NH) 
+swam <- filter(swam, DEPTH_BIN == "Shallow")
+
+# Calculate survey weights (inverse proportion weighting)
+w.df<-swam %>%
+  group_by(OBS_YEAR,DEPTH_BIN,NH) %>%
+  summarise(n = length(unique(SITE)))
+
+w.df$sw<-w.df$NH/w.df$n #calculate survey weights for each site
+
+site.sw<-left_join(swam,w.df) #merge weights with site-level data
+head(site.sw)
+
+#Create contactenated Strata variable 
+site.sw$Strat_conc<-paste(site.sw$OBS_YEAR, site.sw$DEPTH_BIN,sep = "_")
+site.sw$OBS_YEAR<-as.factor(site.sw$OBS_YEAR)
+
+#Subset data
+site.sw.mospfo <- site.sw %>% filter(TAXONCODE_2 == "MOSP_FO") 
+site.sw.mospem <- site.sw %>% filter(TAXONCODE_2 == "MOSP_EM") # 
+site.sw.pmvc <- site.sw %>% filter(TAXONCODE_2 == "PMVC") # 
+site.sw.pgwc <- site.sw %>% filter(TAXONCODE_2 == "PGWC") # 
+site.sw.pospem <- site.sw %>% filter(TAXONCODE_2 == "POSP_EM") # 
+site.sw.pospmd <- site.sw %>% filter(TAXONCODE_2 == "POSP_MD")
+
+
+#Establish survey design with survey weights
+des.pgwc<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pgwc)
+des.pmvc<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pmvc)
+des.mospfo<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.mospfo)
+des.mospem<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.mospem)
+des.pospem<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pospem)
+des.pospmd<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pospmd)
+
+
+# Test assumptions
+with(site.sw.pmvc, tapply((Ave.od), OBS_YEAR, shapiro.test)) # passed
+bartlett.test(Ave.od ~ Strat_conc,site.sw.pmvc) 
+with(site.sw.pgwc, tapply((Ave.od), OBS_YEAR, shapiro.test)) # not passed
+bartlett.test(Ave.od ~ Strat_conc,site.sw.pgwc) 
+with(site.sw.mospem, tapply((Ave.od), OBS_YEAR, shapiro.test)) # passed
+bartlett.test(Ave.od ~ Strat_conc,site.sw.mospem)
+with(site.sw.mospfo, tapply((Ave.od), OBS_YEAR, shapiro.test)) # passed
+bartlett.test(Ave.od ~ Strat_conc,site.sw.mospfo)
+with(site.sw.pospem, tapply((Ave.od), OBS_YEAR, shapiro.test)) # not passed
+bartlett.test(Ave.od ~ Strat_conc,site.sw.pospem)
+with(site.sw.pospmd, tapply((Ave.od), OBS_YEAR, shapiro.test)) # not passed
+bartlett.test(Ave.od ~ Strat_conc,site.sw.pospmd)
+
+
+# Non-parametric version of svyglm
+svyranktest(Ave.od ~ OBS_YEAR, design=subset(des.pgwc,DEPTH_BIN=="Shallow"), test=("KruskalWallis")) # NS
+# svyranktest(Ave.od ~ OBS_YEAR, design=subset(des.pmvc,DEPTH_BIN=="Shallow"), test=("KruskalWallis")) # p < 0.001
+# svyranktest(Ave.od ~ OBS_YEAR, design=subset(des.mospem,DEPTH_BIN=="Shallow"), test=("KruskalWallis")) # NS
+# svyranktest(Ave.od ~ OBS_YEAR, design=subset(des.mospfo,DEPTH_BIN=="Shallow"), test=("KruskalWallis")) # NS
+svyranktest(Ave.od ~ OBS_YEAR, design=subset(des.pospem,DEPTH_BIN=="Shallow"), test=("KruskalWallis")) # NS
+svyranktest(Ave.od ~ OBS_YEAR, design=des.pospmd, test=("KruskalWallis")) # p = 0.052
+
+
+#  Test fixed effects of year
+# modR.pgwc <- svyglm(Ave.od ~ OBS_YEAR,  design = des.pgwc)
+# car::Anova(modR.pgwc, type=3, test.statistic = "F") # NS
+
+modR.pmvc <- svyglm(Ave.od ~ OBS_YEAR,  design = des.pmvc)
+car::Anova(modR.pmvc, type=3, test.statistic = "F") # < 0.001
+
+modR.mospem <- svyglm(Ave.od ~ OBS_YEAR,  design = des.mospem)
+car::Anova(modR.mospem, type=3, test.statistic = "F") # NS
+
+modR.mospfo <- svyglm(Ave.od ~ OBS_YEAR, design = des.mospfo)
+car::Anova(modR.mospfo, type=3, test.statistic = "F") # NS
+
+# modR.pospem <- svyglm(Ave.od ~ OBS_YEAR, design = des.pospem)
+# car::Anova(modR.pospem, type=3, test.statistic = "F") # NS
+# 
+# modR.pospmd <- svyglm(Ave.od ~ OBS_YEAR, design = des.pospmd)
+# car::Anova(modR.pospmd, type=3, test.statistic = "F") # NS
+
+
+# Post-hoc
+# tot.pgwc <- emmeans(modR.pgwc, specs = pairwise~OBS_YEAR, adjust = "none") # 2015 is sig less than 2018 and 2023
+# tot.pgwc.df <- as.data.frame(tot.pgwc[[2]])
+
+tot.pmvc <- emmeans(modR.pmvc, specs = pairwise~OBS_YEAR, adjust = "none") # 2015 is sig less than 2018 and 2023
+tot.pmvc.df <- as.data.frame(tot.pmvc[[2]])
+
+# tot.pospmd <- emmeans(modR.pospmd, specs = pairwise~OBS_YEAR, adjust = "none") # 2015 is sig less than 2018 and 2023
+# tot.pospmd.df <- as.data.frame(tot.pospmd[[2]])
+# 
+# tot.mospem <- emmeans(modR.mospem, specs = pairwise~OBS_YEAR, adjust = "none") # 2015 is sig less than 2018 and 2023
+# tot.mospem.df <- as.data.frame(tot.mospem[[2]])
+
+
+# Apply test corrections
+tot.pmvc.df$p.adj <- p.adjust(tot.pmvc.df$p.value, method = "BH"); tot.pmvc.df # above holds true
+
+
+#Calculate regional mean and SE
+od_mean_pmvc<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des.pmvc,svymean)
+od_mean_pgwc<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des.pgwc,svymean)
+od_mean_pospmd<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des.pospmd,svymean)
+od_mean_pospem<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des.pospem,svymean) 
+od_mean_mospfo<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des.mospfo,svymean)
+od_mean_mospem<-svyby(~Ave.od,~OBS_YEAR+DEPTH_BIN,des.mospem,svymean) 
+
+# Put all od_mean dataframes together for plotting
+od_mean_pmvc$Genus <- paste("P. meandrina/verrucosa complex")
+od_mean_pmvc$sig <- c("a","b","a")
+od_mean_pgwc$Genus <- paste("P. grandis/woodjonsei complex")
+od_mean_pgwc$sig <- c(NA,NA,NA)
+od_mean_pospmd$Genus <- paste("Mounding Porites spp.")
+od_mean_pospmd$sig <- c(NA,NA,NA)
+od_mean_pospem$Genus <- paste("Encrusting Porites spp.")
+od_mean_pospem$sig <- c(NA,NA,NA)
+od_mean_mospem$Genus <- paste("Encrusting Montipora spp.")
+od_mean_mospem$sig <- c(NA,NA,NA)
+od_mean_mospfo$Genus <- paste("Foliose Montipora spp.")
+od_mean_mospfo$sig <- c(NA,NA,NA)
+od_mean_tot <- rbind(od_mean_pgwc,od_mean_pospem,od_mean_pospmd,
+                     od_mean_mospem,od_mean_mospfo,od_mean_pmvc)
+
+
+# od_mean_tot$DEPTH_BIN <- factor(od_mean_tot$DEPTH_BIN, levels = c("Shallow","Mid","Deep")) # Add Posthoc groupings from glms
+# od_mean_tot <- od_mean[order(od_mean_tot$DEPTH_BIN),];od_mean_tot 
+
+
+# Plot Partial mortality data
+
+
+s <- ggplot(od_mean_tot ,  aes(x=OBS_YEAR, y=Ave.od, fill=OBS_YEAR, group = Genus)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = alpha(c("orchid4","aquamarine3","goldenrod3"))) +
+  geom_errorbar(data = od_mean_tot,aes(ymin=Ave.od-se, ymax=Ave.od+se), width = .3) +
+  geom_text(aes(x=OBS_YEAR,y=Ave.od+se+3,label=sig, group = Genus),
+            position = position_dodge()) +
+  facet_wrap(~Genus,nrow = 2, labeller = label_wrap_gen(width = 18)) +
+  guides(fill="none") +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(0, "lines"),
+        strip.text.x = element_text(size = 12),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size=13),
+        axis.title.y = element_text(size=13)) +
+  labs(x="Year",y="Average Old Dead %") +
+  ylim(0,39)
+
+ggsave(plot=s,file="C:/Users/Corinne.Amir/Documents/Analysis/FigureS5.jpg",width=10,height=8)
+ggsave(plot=s,file="T:/Benthic/Projects/Swains 2023 Benthic Analysis/Plots/FigureS5.jpg",width=10,height=8)
