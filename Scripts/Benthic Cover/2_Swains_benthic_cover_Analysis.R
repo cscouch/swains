@@ -54,24 +54,30 @@ site.sw$DEPTH_BIN<-as.factor(site.sw$DEPTH_BIN)
 site.sw.pool <- site.sw
 site.sw.pool$Strat_conc<-paste(site.sw.pool$OBS_YEAR, site.sw.pool$DEPTH_BIN, site.sw.pool$New, sep = "_")#create strata design including taxa so we can survey lonely.psu correctly
 
+site.sw.pool.shal <- droplevels(filter(site.sw.pool, New != "Other", DEPTH_BIN == "Shallow"))
+site.sw.pool.mid <- droplevels(filter(site.sw.pool, New != "Other", DEPTH_BIN == "Mid"))
+site.sw.pool.deep <- droplevels(filter(site.sw.pool, New != "Other", DEPTH_BIN == "Deep"))
 
 options(survey.lonely.psu = "adjust") #keep in strata with only 1 site
 
 #create survey design
-des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= filter(site.sw.pool, New != "Other")) #create survey design including all depth strata, remove the random taxa group bc we aren't looking for differences between groups
 
+###WHY ISNT WORKING
+des.shal<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= site.sw.pool.shal) #create survey design including all depth strata, remove the random taxa group bc we aren't looking for differences between groups
+des.mid<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= site.sw.pool.mid)
+des.deep<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= site.sw.pool.deep)
 
 #SUBSET SHALLOW
-modR.shallow<-svyglm(Percent/100 ~ New*OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow"), family = quasibinomial(link = "logit")) #run survey model
+modR.shallow<-svyglm(Percent/100 ~ New*OBS_YEAR, design=des.shal, family = quasibinomial(link = "logit")) #run survey model
 shal <- bind_cols("Shallow",car::Anova(modR.shallow, type = 3, test.statistic = "F")) #create anova table and add in the strata label
 post.shal <- emmeans(modR.shallow, specs = pairwise ~ OBS_YEAR*New, adjust = "none") #Calculate pairwise comparisons, without correction
 
 #Single Factor tests -- all are significant
-shal.coral <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "Total Coral"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
-shal.CCA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "CCA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.006
-shal.UPMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "UPMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
-shal.TURF <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "TURF"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0065
-shal.EMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "EMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.04
+#shal.coral <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "Total Coral"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
+#shal.CCA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "CCA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.006
+#shal.UPMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "UPMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
+#shal.TURF <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "TURF"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0065
+#shal.EMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "EMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.04
 
 #POST HOC TESTS FOR EACH FUNCTIONAL GROUP ONLY FOR COMPARISONS WE CARE ABOUT (WITHOUT FUNCTIONAL GROUP OVER TIME, NOT BETWEEN FUNCTIONAL GROUPS)
 coral.shal <- as.data.frame(post.shal[[2]]) %>% filter(stringr::str_count(contrast, 'Total Coral') == 2)
@@ -96,25 +102,27 @@ mid <- bind_cols("Mid",car::Anova(modR.mid, type = 3, test.statistic = "F"))
 post.mid <- emmeans(modR.mid, specs = pairwise ~ OBS_YEAR*New, adjust = "none")
 
 #Single Factor tests
-mid.coral <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "Total Coral"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.048
-mid.CCA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "CCA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#NS p = 0.12
-mid.UPMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "UPMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0001
-mid.TURF <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "TURF"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
-mid.EMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "EMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.015
+#mid.coral <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "Total Coral"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.048
+#mid.CCA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "CCA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#NS p = 0.12
+#mid.UPMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "UPMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0001
+#mid.TURF <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "TURF"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
+#mid.EMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid" & New == "EMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.015
 
 #PAIRWISE COMPARISON TESTS FOR EACH FUNCTIONAL GROUP
 coral.mid <- as.data.frame(post.mid[[2]]) %>% filter(stringr::str_count(contrast, 'Total Coral') == 2)
+CCA.mid <- as.data.frame(post.mid[[2]]) %>% filter(stringr::str_count(contrast, 'CCA') == 2)
 UPMA.mid <- as.data.frame(post.mid[[2]]) %>% filter(stringr::str_count(contrast, 'UPMA') == 2)
 TURF.mid <- as.data.frame(post.mid[[2]]) %>% filter(stringr::str_count(contrast, 'TURF') == 2)
 EMA.mid <- as.data.frame(post.mid[[2]]) %>% filter(stringr::str_count(contrast, 'EMA') == 2)
 
 #apply test correction to each functional group
-coral.mid$p.adj <-  p.adjust(coral.mid$p.value, method = "BH") 
+coral.mid$p.adj <-  p.adjust(coral.mid$p.value, method = "BH")
+CCA.mid$p.adj <-  p.adjust(CCA.mid$p.value, method = "BH")
 UPMA.mid$p.adj <-  p.adjust(UPMA.mid$p.value, method = "BH") 
 TURF.mid$p.adj <-  p.adjust(TURF.mid$p.value, method = "BH") 
 EMA.mid$p.adj <-  p.adjust(EMA.mid$p.value, method = "BH") 
 
-post.mid <- bind_rows(coral.mid, UPMA.mid, TURF.mid, EMA.mid)
+post.mid <- bind_rows(coral.mid, CCA.mid, UPMA.mid, TURF.mid, EMA.mid)
 post.mid$strata <- "Mid"
 
 #SUBSET DEEP
@@ -123,25 +131,27 @@ deep <- bind_cols("Deep", car::Anova(modR.deep, type = 3, test.statistic = "F"))
 post.deep <- emmeans(modR.deep, specs = pairwise ~ OBS_YEAR*New, adjust = "none")
 
 #Single Factor tests
-deep.coral <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "Total Coral"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#NS p = 0.11
-deep.CCA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "CCA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0005
-deep.UPMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "UPMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
-deep.TURF <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "TURF"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0003
-deep.EMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "EMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p < 0.0001
+#deep.coral <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "Total Coral"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#NS p = 0.11
+#deep.CCA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "CCA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0005
+#deep.UPMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "UPMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
+#deep.TURF <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "TURF"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0003
+#deep.EMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep" & New == "EMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p < 0.0001
 
 #PAIRWISE COMPARISON TESTS FOR EACH FUNCTIONAL GROUP
+coral.deep <- as.data.frame(post.deep[[2]]) %>% filter(stringr::str_count(contrast, 'Total Coral') == 2)
 CCA.deep <- as.data.frame(post.deep[[2]]) %>% filter(stringr::str_count(contrast, 'CCA') == 2)
 UPMA.deep <- as.data.frame(post.deep[[2]]) %>% filter(stringr::str_count(contrast, 'UPMA') == 2)
 TURF.deep <- as.data.frame(post.deep[[2]]) %>% filter(stringr::str_count(contrast, 'TURF') == 2)
 EMA.deep <- as.data.frame(post.deep[[2]]) %>% filter(stringr::str_count(contrast, 'EMA') == 2)
 
 #apply test correction to each functional group
+coral.deep$p.adj <-  p.adjust(coral.deep$p.value, method = "BH")
 CCA.deep$p.adj <-  p.adjust(CCA.deep$p.value, method = "BH") 
 UPMA.deep$p.adj <-  p.adjust(UPMA.deep$p.value, method = "BH") 
 TURF.deep$p.adj <-  p.adjust(TURF.deep$p.value, method = "BH") 
 EMA.deep$p.adj <-  p.adjust(EMA.deep$p.value, method = "BH") 
 
-post.deep <- bind_rows(CCA.deep, UPMA.deep, TURF.deep, EMA.deep)
+post.deep <- bind_rows(coral.deep, CCA.deep, UPMA.deep, TURF.deep, EMA.deep)
 post.deep$strata <- "Deep"
 
 #put all post hoc tests together for export
