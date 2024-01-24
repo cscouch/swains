@@ -7,9 +7,6 @@ library(car) #Anova w/ Type III SS function
 library(emmeans) #post-hoc options for Anova 
 library(lme4)
 library(multcomp)
-library(hrbrthemes)
-library(viridis)
-library(ggridges)
 
 rm(list=ls())
 ####Read in binned data and mean.SD file---------------
@@ -130,6 +127,9 @@ modR.shallow<-svyglm(PROP ~OBS_YEAR,  design=MOSP.des_shal_Q10)
 Anova(modR.shallow, type = 3, test.statistic = "F") #p =0.001
 emmeans(modR.shallow, pairwise ~ OBS_YEAR) #2015 < 2023
 
+dat_weighted_MOSP<-svyby(~PROP,~OBS_YEAR,MOSP.des_shal_Q10,svymean)
+
+
 MOSP.sw_shal_QMed<-filter(MOSP.sw_shal, SIZE_BIN == "QMed.R")
 MOSP.des_shal_QMed<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=MOSP.sw_shal_QMed)
 modR.shallow<-svyglm(PROP ~OBS_YEAR,  design=MOSP.des_shal_QMed)
@@ -230,6 +230,8 @@ modR.shallow<-svyglm(PROP ~OBS_YEAR,  design=POCS.des_shal_Q10)
 Anova(modR.shallow, type = 3, test.statistic = "F") #p =0.001
 emmeans(modR.shallow, pairwise ~ OBS_YEAR) #2015 < 2023
 
+dat_weighted<-svyby(~PROP,~OBS_YEAR,POCS.des_shal_Q10,svymean)
+
 POCS.sw_shal_QMed<-filter(POCS.sw_shal, SIZE_BIN == "QMed.R")
 POCS.des_shal_QMed<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=POCS.sw_shal_QMed)
 modR.shallow<-svyglm(PROP ~OBS_YEAR,  design=POCS.des_shal_QMed)
@@ -270,6 +272,7 @@ POCS.des_deep_juv<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=POCS.s
 svyranktest(PROP ~ OBS_YEAR, design=POCS.des_deep_juv, test=("KruskalWallis"))
 modR.deep<-svyglm(PROP ~OBS_YEAR, design=POCS.des_deep_juv)
 Anova(modR.deep, type = 3, test.statistic = "F") #NS 
+#both the parametric and non-parametric approaches are throwing singularity errors; lack o' data (aka only one site with density of POCS)
 
 POCS.sw_deep_Q10<-filter(POCS.sw_deep, SIZE_BIN == "Q10.R")
 POCS.des_deep_Q10<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=POCS.sw_deep_Q10)
@@ -286,6 +289,7 @@ POCS.des_deep_Q90<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=POCS.s
 svyranktest(PROP ~ OBS_YEAR, design=POCS.des_deep_Q90, test=("KruskalWallis"))
 modR.deep<-svyglm(PROP ~OBS_YEAR,  design=POCS.des_deep_Q90)
 Anova(modR.deep, type = 3, test.statistic = "F") #p =0.001
+#both the parametric and non-parametric approaches are throwing singularity errors; lack o' data (aka only one site with density of POCS)
 
-svyranktest(RV ~ OBS_YEAR, design=dat.des, test=("KruskalWallis"))
+
 
