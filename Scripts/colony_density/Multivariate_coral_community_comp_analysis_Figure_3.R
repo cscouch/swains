@@ -189,7 +189,7 @@ head(species.scores)
 
 species.scores$SPECIES <-  as.factor(species.scores$SPECIES)
 #sig.species.scores <- subset(species.scores, pval<=0.05) #subset data to show species significant at 0.05
-sig.species.scores <- subset(species.scores, SPECIES %in% c("MOSP_FO", "MOSP_EM", "PGWC", "PMVC", "POSP_EM")) #subset to specific taxa contributing to 50% cummulative difference
+sig.species.scores <- subset(species.scores, SPECIES %in% c("MOSP_FO", "MOSP_EM", "PGWC", "PMVC", "POSP_EM", "POSP_MD")) #subset to specific taxa contributing to 50% cummulative difference
 
 # function for ellipses 
 veganCovEllipse <- function (cov, center = c(0, 0), scale = 1, npoints = 100) 
@@ -266,7 +266,7 @@ head(species.scores_m)
 
 species.scores_m$SPECIES <-  as.factor(species.scores_m$SPECIES)
 #sig.species.scores <- subset(species.scores, pval<=0.05) #subset data to show species significant at 0.05
-sig.species.scores_m <- subset(species.scores_m, SPECIES %in% c("MOSP_FO", "MOSP_EM", "PMAL", "PMVC", "PSSP_EM","LMYC")) #subset to specific taxa contributing to 50,% cummulative difference
+sig.species.scores_m <- subset(species.scores_m, SPECIES %in% c("MOSP_FO", "MOSP_EM", "PGWC", "PMVC", "POSP_EM", "POSP_MD")) #subset to specific taxa contributing to 50,% cummulative difference
 
 #data for ellipse, in this case using the YEAR factor
 df_ell_m <- data.frame() #sets up a data frame before running the function.
@@ -336,7 +336,7 @@ head(species.scores_d)
 
 species.scores_d$SPECIES <-  as.factor(species.scores_d$SPECIES)
 #sig.species.scores <- subset(species.scores, pval<=0.05) #subset data to show species significant at 0.05
-sig.species.scores_d <- subset(species.scores_d, SPECIES %in% c("MOSP_FO", "MOSP_EM", "PMVC", "PGWC","POSP_EM")) #subset to specific taxa contributing to 50,% cummulative difference
+sig.species.scores_d <- subset(species.scores_d, SPECIES %in% c("MOSP_FO", "MOSP_EM", "PGWC", "PMVC", "POSP_EM", "POSP_MD")) #subset to specific taxa contributing to 50,% cummulative difference
 
 #data for ellipse, in this case using the YEAR factor
 df_ell_d <- data.frame() #sets up a data frame before running the function.
@@ -380,7 +380,7 @@ sig.species.scores_all$SPECIES <- recode_factor(sig.species.scores_all$SPECIES, 
                                                                                 "MOSP_FO" = "Fol. MOSP",
                                                                                 "POSP_MD" ="Mound. POSP",
                                                                                 "POSP_EM" ="Enc. POSP",
-                                                                                "PSSP_EM" = "Enc. PSSP")
+                                                                              )
 
 
 
