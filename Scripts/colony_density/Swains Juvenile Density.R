@@ -264,5 +264,6 @@ juv.plot<-grid.arrange(s+ggtitle("Shallow"), m + ggtitle("Mid"), d+ ggtitle("Dee
           bottom = xtitle,
           nrow = 3)
 
-ggsave(plot=juv.plot,file="T:/Benthic/Projects/Swains 2023 Benthic Analysis/Plots/FigureS3.jpg",width=10,height=8)
+#ggsave(plot=juv.plot,file="T:/Benthic/Projects/Swains 2023 Benthic Analysis/Plots/FigureS3.jpg",width=10,height=8)
 
+ggsave(plot=juv.plot,file="FigureS3.jpg",width=10,height=8)
