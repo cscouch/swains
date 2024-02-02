@@ -53,7 +53,7 @@ site.sw$DEPTH_BIN<-as.factor(site.sw$DEPTH_BIN)
 # site.sw[is.na(site.sw)] <- 0
 
 
-#### Partial Mortality among most common taxa/morphologies ####
+#### Partial Mortality using SIMPER results ####
 
 # Merge demo data with new NH values pooled across the 2 swains sectors
 site.sw <- filter(site.sw, DEPTH_BIN == "Shallow") %>% drop_na()

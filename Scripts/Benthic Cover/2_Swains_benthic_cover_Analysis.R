@@ -97,7 +97,7 @@ post.shal <- bind_rows(coral.shal, CCA.shal, UPMA.shal, TURF.shal, EMA.shal) #pu
 post.shal$strata <- "Shallow" #add in strata label for further grouping
 
 #SUBSET MID 
-modR.mid<-svyglm(Percent/100 ~ New*OBS_YEAR, design=des.mid, family = quasibinomial(link = "logit"))
+modR.mid<-svyglm(Percent/100 ~ New*OBS_YEAR, design=subset(des, DEPTH_BIN == "Mid"), family = quasibinomial(link = "logit"))
 mid <- bind_cols("Mid",car::Anova(modR.mid, type = 3, test.statistic = "F"))
 post.mid <- emmeans(modR.mid, specs = pairwise ~ OBS_YEAR*New, adjust = "none")
 
@@ -126,7 +126,7 @@ post.mid <- bind_rows(coral.mid, CCA.mid, UPMA.mid, TURF.mid, EMA.mid)
 post.mid$strata <- "Mid"
 
 #SUBSET DEEP
-modR.deep<-svyglm(Percent/100 ~ New*OBS_YEAR, design=des.deep, family = quasibinomial(link = "logit"))
+modR.deep<-svyglm(Percent/100 ~ New*OBS_YEAR, design=subset(des, DEPTH_BIN == "Deep"), family = quasibinomial(link = "logit"))
 deep <- bind_cols("Deep", car::Anova(modR.deep, type = 3, test.statistic = "F"))
 post.deep <- emmeans(modR.deep, specs = pairwise ~ OBS_YEAR*New, adjust = "none")
 
