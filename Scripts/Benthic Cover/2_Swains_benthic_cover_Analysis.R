@@ -22,7 +22,7 @@ swa<-filter(swains_t2_pooled,new_MAX_DEPTH_M >=3) #subset sites deeper than 3m
 nrow(swa)
 
 #read in sector-area file
-sectors<-read.csv("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Sectors-Strata-Areas.csv", stringsAsFactors=FALSE)
+sectors<-read.csv("Data/Sectors-Strata-Areas.csv", stringsAsFactors=FALSE)
 swa_sa<-filter(sectors,ISLAND=="Swains") #subset to swains only
 swa_sa$DEPTH_BIN<-as.factor(swa_sa$DEPTH_BIN)
 
