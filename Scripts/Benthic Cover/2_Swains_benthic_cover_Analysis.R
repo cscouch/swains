@@ -62,7 +62,7 @@ options(survey.lonely.psu = "adjust") #keep in strata with only 1 site
 
 #create survey design
 
-###WHY ISNT WORKING
+###CREATE DESIGNS
 des.shal<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= site.sw.pool.shal) #create survey design including all depth strata, remove the random taxa group bc we aren't looking for differences between groups
 des.mid<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= site.sw.pool.mid)
 des.deep<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= site.sw.pool.deep)
@@ -161,13 +161,14 @@ post.hocs <- dplyr::bind_rows(post.deep, post.mid, post.shal)
 write.csv(post.hocs, "T:/Benthic/Projects/Swains 2023 Benthic Analysis/Tables/BenthicCover_posthoc_2010_lonelypsu.csv")
 write.csv(bind_rows(shal, mid, deep), "T:/Benthic/Projects/Swains 2023 Benthic Analysis/Tables/BenthicCover_anova.csv")
 
-des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= site.sw.pool) 
+des<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data= filter(site.sw.pool, New!= "Other")) 
 
 ##########ALL TAXA BENTHIC COVER PLOT#####
 #create strata level estimates of percent cover from the survey package
 strata.means <- svyby(~Percent, ~Strat_conc, des, svymean) #calculate mean and standard error based on weighting
 strata.means <- strata.means %>% tidyr::separate(Strat_conc, sep = "_", into = c("OBS_YEAR", "DEPTH_BIN", "TAXA")) #unconcatenate strata variables
 strata.means$OBS_YEAR <- as.Date(ISOdate(strata.means$OBS_YEAR,1,1)) #convert OBS_YEAR to date
+
 
 #create colors for functional groups
 taxalist <- c("Total Coral", "CCA","UPMA" , "TURF","EMA")
@@ -205,4 +206,4 @@ lines <- ggplot(strata.means, aes(x = OBS_YEAR, y = Percent, color = TAXA)) +
 
 
 ggsave("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Plots/Figure2.png", lines, height = 8, width = 11)
-
+write.csv(strata.means,"Data/Strata_level_benthic_cover.csv")
