@@ -10,11 +10,11 @@ library(survey)
 library(multcomp)
 library(emmeans)
 
+dir = Sys.info()[7]
+setwd(paste0("C:/Users/", dir, "/Documents/GitHub/swains/"))
 
 #LOAD site-level data
 swa <- read.csv("Data/Swains_sitedata_TAXONCODE_MORPH.csv")
-
-
 
 #read in sector-area file
 sectors<-read.csv("Data/Sectors-Strata-Areas.csv", stringsAsFactors=FALSE)
@@ -84,8 +84,11 @@ des.pospmd<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pospm
 # Test assumptions
 with(site.sw.pmvc, tapply((Ave.od), OBS_YEAR, shapiro.test)) # passed shapiro test
 bartlett.test(Ave.od ~ Strat_conc,site.sw.pmvc) 
-with(site.sw.pgwc, tapply((Ave.od), OBS_YEAR, shapiro.test)) # passed (NA for 2018)
+bartlett.test(sqrt(Ave.od) ~ Strat_conc,site.sw.pmvc) #sqrt transform and it passes
+
+with(site.sw.pgwc, tapply(sqrt(Ave.od), OBS_YEAR, shapiro.test)) # passed (NA for 2018)
 bartlett.test(Ave.od ~ Strat_conc,site.sw.pgwc) 
+
 with(site.sw.mospem, tapply((Ave.od), OBS_YEAR, shapiro.test)) # passed both
 bartlett.test(Ave.od ~ Strat_conc,site.sw.mospem)
 with(site.sw.mospfo, tapply((Ave.od), OBS_YEAR, shapiro.test)) # passed both
@@ -96,16 +99,15 @@ with(site.sw.pospmd, tapply((Ave.od), OBS_YEAR, shapiro.test)) # passed (NA for 
 bartlett.test(Ave.od ~ Strat_conc,site.sw.pospmd)
 
 
-# Non-parametric version of svyglm
-svyranktest(Ave.od ~ OBS_YEAR, design=des.pmvc, test=("KruskalWallis")) # p < 0.001
+# Non-parametric tests for the taxa that didn't pass homogenity tests
 svyranktest(Ave.od ~ OBS_YEAR, design=des.pgwc, test=("KruskalWallis")) # NS
 svyranktest(Ave.od ~ OBS_YEAR, design=des.pospem,DEPTH_BIN=="Shallow", test=("KruskalWallis")) # NS
 svyranktest(Ave.od ~ OBS_YEAR, design=des.pospmd, test=("KruskalWallis")) # NS
 
 
-#  Test fixed effects of year
-modR.pgwc <- svyglm(Ave.od ~ OBS_YEAR,  design = des.pgwc)
-car::Anova(modR.pgwc, type=3, test.statistic = "F") # NS
+#  Svyglm for models that passed diagnostics
+modR.pmvc <- svyglm(sqrt(Ave.od) ~ OBS_YEAR,  design = des.pmvc) #p <0.00001
+car::Anova(modR.pmvc, type=3, test.statistic = "F") 
 
 modR.mospem <- svyglm(Ave.od ~ OBS_YEAR,  design = des.mospem)
 car::Anova(modR.mospem, type=3, test.statistic = "F") # NS
@@ -113,8 +115,6 @@ car::Anova(modR.mospem, type=3, test.statistic = "F") # NS
 modR.mospfo <- svyglm(Ave.od ~ OBS_YEAR, design = des.mospfo)
 car::Anova(modR.mospfo, type=3, test.statistic = "F") # NS
 
-modR.pospmd<- svyglm(Ave.od ~ OBS_YEAR,  design = des.pospmd)
-car::Anova(modR.pospmd, type=3, test.statistic = "F") # NS
 
 
 # Post-hoc
@@ -124,20 +124,6 @@ tot.pmvc.df <- as.data.frame(tot.pmvc[[2]])
 
 # Apply test corrections
 tot.pmvc.df$p.adj <- p.adjust(tot.pmvc.df$p.value, method = "BH"); tot.pmvc.df # above holds true
-
-
-# Non parametric post hoc and test correction
-l<-c("2015","2018","2023") # p value for non-parametric tests
-ps<-matrix(NA,3,3)
-dimnames(ps)<-list(l,l)
-for(i in 1:2){
-  for(j in (i+1):3){
-    ps[i,j]<-svyranktest(Ave.od~OBS_YEAR, subset(des.pmvc, OBS_YEAR %in% l[c(i,j)]))$p.value
-  }
-}
-ps # 2018 sig different than 2015 and 2023
-p.adjust(ps[!is.na(ps)],method="hochberg") # holds true
-
 
 
 

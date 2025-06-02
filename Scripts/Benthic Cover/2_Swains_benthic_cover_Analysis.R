@@ -14,7 +14,7 @@ library(emmeans)
 dir = Sys.info()[7]
 setwd(paste0("C:/Users/", dir, "/Documents/GitHub/swains/"))
 
-#####surveyglm
+
 #LOAD site-level data
 swains_t2_pooled <- read.csv("Data/Benthic_Cover_Ready.csv")
 swa<-filter(swains_t2_pooled,new_MAX_DEPTH_M >=3) #subset sites deeper than 3m
@@ -73,26 +73,13 @@ shal <- bind_cols("Shallow",car::Anova(modR.shallow, type = 3, test.statistic = 
 post.shal <- emmeans(modR.shallow, specs = pairwise ~ OBS_YEAR*New, adjust = "none") #Calculate pairwise comparisons, without correction
 
 #Single Factor tests -- all are significant
-#shal.coral <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "Total Coral"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
-#shal.CCA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "CCA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.006
-#shal.UPMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "UPMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
-#shal.TURF <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "TURF"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0065
-#shal.EMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des, DEPTH_BIN == "Shallow" & New == "EMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.04
+shal.coral <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des.shal,New == "Total Coral"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
+shal.CCA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des.shal, New == "CCA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.006
+shal.UPMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des.shal, New == "UPMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.003
+shal.TURF <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des.shal, New == "TURF"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.0065
+shal.EMA <- car::Anova(svyglm(Percent/100 ~ OBS_YEAR, design=subset(des.shal, New == "EMA"), family = quasibinomial(link = "logit")), type = 3, test.statistic = "F")#p = 0.04
 
-#POST HOC TESTS FOR EACH FUNCTIONAL GROUP ONLY FOR COMPARISONS WE CARE ABOUT (WITHOUT FUNCTIONAL GROUP OVER TIME, NOT BETWEEN FUNCTIONAL GROUPS)
-coral.shal <- as.data.frame(post.shal[[2]]) %>% filter(stringr::str_count(contrast, 'Total Coral') == 2)
-CCA.shal <- as.data.frame(post.shal[[2]]) %>% filter(stringr::str_count(contrast, 'CCA') == 2)
-UPMA.shal <- as.data.frame(post.shal[[2]]) %>% filter(stringr::str_count(contrast, 'UPMA') == 2)
-TURF.shal <- as.data.frame(post.shal[[2]]) %>% filter(stringr::str_count(contrast, 'TURF') == 2)
-EMA.shal <- as.data.frame(post.shal[[2]]) %>% filter(stringr::str_count(contrast, 'EMA') == 2)
-
-#apply test correction to each functional group
-coral.shal$p.adj <-  p.adjust(coral.shal$p.value, method = "BH") 
-CCA.shal$p.adj <-  p.adjust(CCA.shal$p.value, method = "BH") 
-UPMA.shal$p.adj <-  p.adjust(UPMA.shal$p.value, method = "BH") 
-TURF.shal$p.adj <-  p.adjust(TURF.shal$p.value, method = "BH") 
-EMA.shal$p.adj <-  p.adjust(EMA.shal$p.value, method = "BH") 
-
+ 
 post.shal <- bind_rows(coral.shal, CCA.shal, UPMA.shal, TURF.shal, EMA.shal) #put the funtional groups back together
 post.shal$strata <- "Shallow" #add in strata label for further grouping
 
@@ -188,6 +175,7 @@ lines <- ggplot(strata.means, aes(x = OBS_YEAR, y = Percent, color = TAXA)) +
                date_breaks = "1 year", 
                limits = as.Date(c("2009-08-01", "2023-06-01")),
                expand = c(0,0))+
+  scale_y_continuous(limits= c(0,60), expand = c(0,0))+
   geom_text(inherit.aes = F, data = panels, aes(x = x, y = Inf, label = LAB), vjust = 1.15, hjust = -.1,size = 6)+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -202,7 +190,7 @@ lines <- ggplot(strata.means, aes(x = OBS_YEAR, y = Percent, color = TAXA)) +
        y = "Percent Cover",
        color = "Functional Group")+
   scale_color_manual(values = taxacolors)+
-  geom_vline(xintercept = as.Date("2016-01-01"), color = "red", linetype = 2)
+  geom_vline(xintercept = as.Date("2016-04-01"), color = "red", linetype = 2)
 
 
 ggsave("T:/Benthic/Projects/Swains 2023 Benthic Analysis/Plots/Figure2.png", lines, height = 8, width = 11)

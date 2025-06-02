@@ -53,7 +53,6 @@ site.sw$OBS_YEAR<-as.factor(site.sw$OBS_YEAR)
 #Subset data
 
 # Use demography data only from the shallow sector
-site.sw <- filter(site.sw, DEPTH_BIN == "Shallow")
 site.sw$OBS_YEAR<-as.factor(site.sw$OBS_YEAR)
 
 site.sw.mospfo <- site.sw %>% filter(TAXONCODE_2 == "MOSP_FO") 
@@ -62,23 +61,6 @@ site.sw.pmvc <- site.sw %>% filter(TAXONCODE_2 == "PMVC")
 site.sw.pgwc <- site.sw %>% filter(TAXONCODE_2 == "PGWC") 
 site.sw.pospem <- site.sw %>% filter(TAXONCODE_2 == "POSP_EM") 
 site.sw.pospmd <- site.sw %>% filter(TAXONCODE_2 == "POSP_MD")
-
-
-
-# Test assumptions for parametric tests
-with(site.sw.pmvc, tapply((AdColDen), OBS_YEAR, shapiro.test)) # NS
-with(site.sw.pgwc, tapply((AdColDen), OBS_YEAR, shapiro.test)) # not working (0 in 2018)
-with(site.sw.mospfo, tapply((AdColDen), OBS_YEAR, shapiro.test)) # 2018 and 2023 significant
-with(site.sw.mospem, tapply((AdColDen), OBS_YEAR, shapiro.test)) # NS
-with(site.sw.pospem, tapply((AdColDen), OBS_YEAR, shapiro.test)) # 2015 and 2023 significant
-with(site.sw.pospmd, tapply((AdColDen), OBS_YEAR, shapiro.test)) # not working (0 in 2018)
-
-bartlett.test(AdColDen ~ Strat_conc,site.sw.pmvc) # NS
-bartlett.test(AdColDen ~ Strat_conc,site.sw.pgwc) # p < 0.05
-bartlett.test(AdColDen ~ Strat_conc,site.sw.mospfo) # NS
-bartlett.test(AdColDen ~ Strat_conc,site.sw.mospem) # NS
-bartlett.test(AdColDen ~ Strat_conc,site.sw.pospem) # NS
-bartlett.test(AdColDen ~ Strat_conc,site.sw.pospmd) # p < 0.05
 
 
 #Establish survey design with survey weights
@@ -90,19 +72,36 @@ des.pospem<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pospe
 des.pospmd<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pospmd)
 
 
-# Non-parametric version of svyglm
-svyranktest(AdColDen ~ OBS_YEAR, design=subset(des.pgwc,DEPTH_BIN=="Shallow"), test=("KruskalWallis")) # p < 0.001
-svyranktest(AdColDen ~ OBS_YEAR, design=subset(des.mospfo,DEPTH_BIN=="Shallow"), test=("KruskalWallis")) # NS
-svyranktest(AdColDen ~ OBS_YEAR, design=subset(des.pospem,DEPTH_BIN=="Shallow"), test=("KruskalWallis")) # NS
-svyranktest(AdColDen ~ OBS_YEAR, design=subset(des.pospmd,DEPTH_BIN=="Shallow"), test=("KruskalWallis")) # p < 0.001
-
-
-#  Test fixed effects of year (parametric)
-modR.pmvc <- svyglm(AdColCount ~ OBS_YEAR,  offset = TRANSECTAREA_ad, design = des.pmvc, family = "poisson")
+#Shallow
+site.sw.pmvc.sh <- site.sw.pmvc %>% filter(DEPTH_BIN == "Shallow") #
+des.pmvc.sh<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pmvc.sh)
+modR.pmvc <- svyglm(AdColCount ~ OBS_YEAR,  offset = TRANSECTAREA_ad, design = des.pmvc.sh, family = "quasipoisson")
 car::Anova(modR.pmvc, type=3, test.statistic = "F") # p = 0.003
 
-modR.mospem <- svyglm(AdColCount ~ OBS_YEAR, offset = TRANSECTAREA_ad,   design = des.mospem, family = "poisson")
-car::Anova(modR.mospem, type=3, test.statistic = "F") # NS
+site.sw.pgwc.sh <- site.sw.pgwc %>% filter(DEPTH_BIN == "Shallow") #
+des.pgwc.sh<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pgwc.sh)
+modR.pgwc <- svyglm(AdColCount ~ OBS_YEAR,  offset = TRANSECTAREA_ad, design = des.pgwc.sh, family = "quasipoisson")
+car::Anova(modR.pgwc, type=3, test.statistic = "F") # p < 0.00001
+
+site.sw.mospem.sh <- site.sw.mospem %>% filter(DEPTH_BIN == "Shallow") #
+des.mospem.sh<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.mospem.sh)
+modR.mospem <- svyglm(AdColCount ~ OBS_YEAR,  offset = TRANSECTAREA_ad, design = des.mospem.sh, family = "quasipoisson")
+car::Anova(modR.mospem, type=3, test.statistic = "F") # p = 0.05498
+
+site.sw.mospfo.sh <- site.sw.mospfo %>% filter(DEPTH_BIN == "Shallow") #
+des.mospfo.sh<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.mospfo.sh)
+modR.mospfo <- svyglm(AdColCount ~ OBS_YEAR,  offset = TRANSECTAREA_ad, design = des.mospfo.sh, family = "quasipoisson")
+car::Anova(modR.mospfo, type=3, test.statistic = "F") #p = 0.445
+
+site.sw.pospmd.sh <- site.sw.pospmd %>% filter(DEPTH_BIN == "Shallow") #
+des.pospmd.sh<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pospmd.sh)
+modR.pospmd <- svyglm(AdColCount ~ OBS_YEAR,  offset = TRANSECTAREA_ad, design = des.pospmd.sh, family = "quasipoisson")
+car::Anova(modR.pospmd, type=3, test.statistic = "F") #p <0.0001
+
+site.sw.pospem.sh <- site.sw.pospem %>% filter(DEPTH_BIN == "Shallow") #
+des.pospem.sh<-svydesign(id=~1, strata=~ Strat_conc, weights=~sw,data=site.sw.pospem.sh)
+modR.pospem <- svyglm(AdColCount ~ OBS_YEAR,  offset = TRANSECTAREA_ad, design = des.pospem.sh, family = "quasipoisson")
+car::Anova(modR.pospem, type=3, test.statistic = "F") #p 0.1046
 
 
 
@@ -116,25 +115,25 @@ tot.pmvc.df <- as.data.frame(tot.pmvc[[2]])
 # Apply test corrections
 tot.pmvc.df$p.adj <- p.adjust(tot.pmvc.df$p.value, method = "BH"); tot.pmvc.df # 2018 no longer smaller than 2023
 
-
-l<-c("2015","2018","2023") # p value for non-parametric tests
-ps<-matrix(NA,3,3)
-dimnames(ps)<-list(l,l)
-for(i in 1:2){
-  for(j in (i+1):3){
-    ps[i,j]<-svyranktest(AdColDen~OBS_YEAR, subset(des.pospmd, OBS_YEAR %in% l[c(i,j)]))$p.value
-  }
-}
-ps
-
-for(i in 1:2){
-  for(j in (i+1):3){
-    ps[i,j]<-svyranktest(AdColDen~OBS_YEAR, subset(des.pgwc, OBS_YEAR %in% l[c(i,j)]))$p.value
-  }
-}
-ps
-
-p.adjust(ps[!is.na(ps)],method="hochberg")
+# 
+# l<-c("2015","2018","2023") # p value for non-parametric tests
+# ps<-matrix(NA,3,3)
+# dimnames(ps)<-list(l,l)
+# for(i in 1:2){
+#   for(j in (i+1):3){
+#     ps[i,j]<-svyranktest(AdColDen~OBS_YEAR, subset(des.pospmd, OBS_YEAR %in% l[c(i,j)]))$p.value
+#   }
+# }
+# ps
+# 
+# for(i in 1:2){
+#   for(j in (i+1):3){
+#     ps[i,j]<-svyranktest(AdColDen~OBS_YEAR, subset(des.pgwc, OBS_YEAR %in% l[c(i,j)]))$p.value
+#   }
+# }
+# ps
+# 
+# p.adjust(ps[!is.na(ps)],method="hochberg")
 
 # PGWC: all years sig different
 # POSPMD: 2018 sig different

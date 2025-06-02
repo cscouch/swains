@@ -7,6 +7,7 @@ library(readr)
 library(vegan)
 library(dplyr)
 
+
 rm(list=ls())
 dir = Sys.info()[7]
 setwd(paste0("C:/Users/", dir, "/Documents/GitHub/swains/"))
@@ -27,19 +28,19 @@ dat_shallow <- dat %>%
   filter(AdColDen > "0")%>%
   filter(DEPTH_BIN == "Shallow") %>%
   spread(key = "TAXONCODE_2", value = "AdColDen")%>%
-  mutate_all(~replace_na(.,0))
+  replace(is.na(.), 0)
 
 dat_mid <- dat %>%
   filter(AdColDen > "0")%>%
   filter(DEPTH_BIN == "Mid") %>%
   spread(key = "TAXONCODE_2", value = "AdColDen")%>%
-  mutate_all(~replace_na(.,0))
+  replace(is.na(.), 0)
 
 dat_deep <- dat %>%
   filter(AdColDen > "0")%>%
   filter(DEPTH_BIN == "Deep") %>%
   spread(key = "TAXONCODE_2", value = "AdColDen")%>%
-  mutate_all(~replace_na(.,0))
+  replace(is.na(.), 0)
 
 ###check out # of sites by year, depth.
 tbl_N<- dat %>% 
@@ -53,8 +54,8 @@ tbl_N #unbalanced design; 2018 has twice the sample size across all depths as 20
 ####PERMANOVA and nMDS for Shallow ----------------------------------------------------------------------
 
 #create dataframes for (1) coral taxa & (2) driver varaiable
-groups <- select (dat_shallow, SITE:DEPTH_BIN)
-taxa <- select(dat_shallow, ACSP_BR:SPIS)
+groups <- dplyr::select (dat_shallow, SITE:DEPTH_BIN)
+taxa <- dplyr::select(dat_shallow, ACSP_BR:SPIS)
 
 #create a heat map of taxa matrix
 range(taxa) #ideally btwn 0-10
@@ -211,8 +212,8 @@ for(g in levels(data.scores$OBS_YEAR)){
 ####PERMANOVA and nMDS for Mid ----------------------------------------------------------------------
 
 #create dataframes for (1) coral taxa & (2) driver varaiable
-groups_m <- select (dat_mid, SITE:DEPTH_BIN)
-taxa_m <- select(dat_mid, ACSP_BR:SPIS)
+groups_m <- dplyr::select (dat_mid, SITE:DEPTH_BIN)
+taxa_m <- dplyr::select(dat_mid, ACSP_BR:SPIS)
 
 #create a heat map of taxa matrix
 taxa_m <- (taxa_m)^(1/2) #square root tranformation to get data range between 0-10
@@ -281,8 +282,8 @@ for(g in levels(data.scores_m$OBS_YEAR)){
 ####PERMANOVA and nMDS for Deep ----------------------------------------------------------------------
 
 #create dataframes for (1) coral taxa & (2) driver varaiable
-groups_d <- select (dat_deep, SITE:DEPTH_BIN)
-taxa_d <- select(dat_deep, ASTS_MD:SPIS)
+groups_d <- dplyr::select (dat_deep, SITE:DEPTH_BIN)
+taxa_d <- dplyr::select(dat_deep, ASTS_MD:SPIS)
 
 #create a heat map of taxa matrix
 taxa_d <- (taxa_d)^(1/2) #square root tranformation to get data range between 0-10
@@ -310,7 +311,7 @@ anova(bd_deep) #passes assumption
 
 ####SIMPER: deep------------------------------
 #explore which specific taxa are differing among OBS_YEAR
-sim <- simper(taxa_reduced, group = groups$OBS_YEAR, permutations = 999)
+sim <- simper(taxa_reduced_d, group = groups_d$OBS_YEAR, permutations = 999)
 sim
 summary(sim) 
 
@@ -337,6 +338,7 @@ head(species.scores_d)
 species.scores_d$SPECIES <-  as.factor(species.scores_d$SPECIES)
 #sig.species.scores <- subset(species.scores, pval<=0.05) #subset data to show species significant at 0.05
 sig.species.scores_d <- subset(species.scores_d, SPECIES %in% c("MOSP_FO", "MOSP_EM", "PGWC", "PMVC", "POSP_EM", "POSP_MD")) #subset to specific taxa contributing to 50,% cummulative difference
+
 
 #data for ellipse, in this case using the YEAR factor
 df_ell_d <- data.frame() #sets up a data frame before running the function.
